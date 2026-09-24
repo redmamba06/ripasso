@@ -63,6 +63,8 @@ export interface Note extends Base {
   courseId: string
   doc: JSONContent | null
   text: string
+  /** scrittura a mano sopra gli appunti */
+  ink?: import('./ink').InkStroke[]
 }
 
 export type QType = 'single' | 'multi' | 'truefalse' | 'open'

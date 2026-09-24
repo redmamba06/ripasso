@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { Editor, JSONContent } from '@tiptap/react'
-import { ArrowLeft, Sparkles, Link2, Unlink, Columns2, Presentation, NotebookPen, Plus, CheckCircle2, Circle, CircleDot, Loader2, Menu, PenLine, PencilLine } from 'lucide-react'
+import { ArrowLeft, Sparkles, Link2, Unlink, Columns2, Presentation, NotebookPen, Plus, CheckCircle2, Circle, CircleDot, Loader2, Menu, PenLine, PencilLine, Pen, Highlighter, Eraser, Undo2, Redo2, Sigma, Type, Check } from 'lucide-react'
 import { db, alive, put, patch, type Note, type Unit, type FileRec } from '../lib/db'
 import { useViewer, encodeRef } from '../lib/viewer'
 import { useSettings } from '../lib/settings'
@@ -21,6 +21,8 @@ import { saveAsset } from '../editor/AssetImage'
 import { NO_AUTOLINK } from '../editor/SlideLink'
 import { toast } from '../components/Toast'
 import { useUI } from '../lib/ui'
+import { useInk, INK_COLORS, INK_HL, INK_SIZES, type InkStroke } from '../lib/ink'
+import type { InkHandle } from '../components/InkLayer'
 import { registerShortcuts } from '../lib/shortcuts'
 import { currentRef } from '../lib/viewer'
 import { NodeSelection } from '@tiptap/pm/state'
@@ -76,9 +78,19 @@ export default function UnitPage() {
 
   // nota caricata una sola volta per unità (poi l'editor è la fonte di verità)
   const [initialNote, setInitialNote] = useState<{ id: string; doc: JSONContent | null } | null>(null)
+  const [ink, setInk] = useState<InkStroke[]>([])
+  const noteRef = useRef<{ doc: JSONContent | null; text: string; ink: InkStroke[] }>({ doc: null, text: '', ink: [] })
+  const inkHandle = useRef<InkHandle | null>(null)
+  const inkActive = useInk((s) => s.active)
   useEffect(() => {
     setInitialNote(null)
-    void db.notes.get(unitId!).then((n) => setInitialNote({ id: unitId!, doc: n?.doc ?? null }))
+    useInk.getState().setActive(false)
+    void db.notes.get(unitId!).then((n) => {
+      noteRef.current = { doc: n?.doc ?? null, text: n?.text ?? '', ink: n?.ink ?? [] }
+      setInk(n?.ink ?? [])
+      setInitialNote({ id: unitId!, doc: n?.doc ?? null })
+    })
+    return () => useInk.getState().setActive(false)
   }, [unitId])
 
   // aggiornamenti da altri dispositivi
@@ -87,6 +99,8 @@ export default function UnitPage() {
       onRemoteChange(async () => {
         const n = await db.notes.get(unitId!)
         if (n && !n.dirty) {
+          noteRef.current = { doc: n.doc, text: n.text, ink: n.ink ?? [] }
+          setInk(n.ink ?? [])
           setInitialNote({ id: unitId!, doc: n.doc })
           setRemoteStamp(Date.now())
         }
@@ -130,13 +144,36 @@ export default function UnitPage() {
     [mode, narrow],
   )
 
+  // testo e scrittura a mano si salvano insieme nella stessa nota
+  const persist = useCallback(() => {
+    if (!unit) return
+    const n = noteRef.current
+    void put<Note>('notes', { id: unit.id, unitId: unit.id, courseId: unit.courseId, doc: n.doc, text: n.text, ink: n.ink, updatedAt: 0 })
+  }, [unit])
   const saveNote = useCallback(
     (doc: JSONContent, text: string) => {
-      if (!unit) return
-      void put<Note>('notes', { id: unit.id, unitId: unit.id, courseId: unit.courseId, doc, text, updatedAt: 0 })
+      noteRef.current = { ...noteRef.current, doc, text }
+      persist()
     },
-    [unit],
+    [persist],
   )
+  const inkTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const saveInk = useCallback(
+    (strokes: InkStroke[]) => {
+      noteRef.current = { ...noteRef.current, ink: strokes }
+      setInk(strokes)
+      if (inkTimer.current) clearTimeout(inkTimer.current)
+      inkTimer.current = setTimeout(persist, 500)
+    },
+    [persist],
+  )
+  const toggleInk = useCallback(() => {
+    const on = !useInk.getState().active
+    if (on) {
+      if (mode === 'slides') setMode(narrow ? 'notes' : 'split')
+      useInk.getState().setActive(true)
+    } else inkHandle.current?.finish()
+  }, [mode, narrow])
 
   const insertMarkdown = useCallback(async (md: string, slideRef?: string | null, atEnd = false) => {
     const ed = editorRef.current
@@ -267,6 +304,7 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
       unitId: unit.id,
       startSnip: () => useViewer.getState().setSnipping(true),
       aiFromSlide: (m) => void aiFromSlide(m),
+      startInk: () => useInk.getState().setActive(true),
       askAi: (t) => {
         setAi(true)
         setTimeout(() => chatHandle.current?.ask(t), 250)
@@ -336,14 +374,41 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
         void patch<Unit>('units', unit.id, { status: 'done' })
         toast('Unità segnata come studiata')
       },
-      draw: () => drawShortcut(false),
-      drawFormula: () => drawShortcut(true),
+      draw: toggleInk,
+      drawFormula: toggleInk,
       aiChat: () => setAi((a) => !a),
       aiNotes: () => void aiFromSlide('notes'),
       aiExplain: () => void aiFromSlide('explain'),
       summary: () => nav(`/c/${unit.courseId}/riassunto`),
     })
-  }, [unit, narrow, setS, drawShortcut, aiFromSlide, nav])
+  }, [unit, narrow, setS, drawShortcut, aiFromSlide, nav, toggleInk])
+
+  // scorciatoie attive mentre si scrive a mano
+  useEffect(() => {
+    if (!inkActive) return
+    const ink = useInk.getState
+    const offKeys = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.code === 'KeyZ') {
+        e.preventDefault()
+        e.stopPropagation()
+        if (e.shiftKey) inkHandle.current?.redo()
+        else inkHandle.current?.undo()
+      }
+    }
+    window.addEventListener('keydown', offKeys, true)
+    const off = registerShortcuts({
+      toolPen: () => ink().set({ tool: 'pen' }),
+      toolHl: () => ink().set({ tool: 'hl' }),
+      toolEraser: () => ink().set({ tool: 'eraser' }),
+      drawDone: () => inkHandle.current?.finish(),
+      toLatex: () => void inkHandle.current?.convert('text'),
+      drawFormula: () => void inkHandle.current?.convert('latex'),
+    })
+    return () => {
+      off()
+      window.removeEventListener('keydown', offKeys, true)
+    }
+  }, [inkActive])
 
   // divisore trascinabile
   const split = useRef<HTMLDivElement>(null)
@@ -418,18 +483,8 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
           {autoLink ? <Link2 size={15} /> : <Unlink size={15} />}
           <span className="hidden xl:inline">{autoLink ? 'Auto-link' : 'No link'}</span>
         </button>
-        <button
-          className="btn btn-sm"
-          title="Inserisci un disegno a mano (Apple Pencil) nel punto in cui ti trovi"
-          onClick={() => {
-            const ed = editorRef.current
-            if (!ed) return
-            if (mode === 'slides') setMode(narrow ? 'notes' : 'split')
-            const pos = insertPos(ed)
-            ed.chain().focus().setTextSelection(Math.min(pos, ed.state.doc.content.size)).insertDrawing({ height: 360, bg: 'blank' }).run()
-          }}
-        >
-          <PencilLine size={15} /> <span className="hidden xl:inline">Disegna</span>
+        <button className={`btn btn-sm ${inkActive ? 'btn-primary' : ''}`} title="Matita: scrivi a mano ovunque sugli appunti (anche sopra il testo)" onClick={toggleInk}>
+          <PencilLine size={15} /> <span className="hidden xl:inline">{inkActive ? 'Fine matita' : 'Matita'}</span>
         </button>
         <button className={`btn btn-sm ${ai ? 'btn-primary' : 'btn-ai'}`} onClick={() => setAi(!ai)}>
           {aiBusy ? <Loader2 size={15} className="spin" /> : <Sparkles size={15} />} <span className="hidden sm:inline">AI</span>
@@ -482,12 +537,16 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
                     mainFileId={unit.mainFileId ?? pdfs[0]?.id}
                     remoteStamp={remoteStamp}
                     onReady={(e) => (editorRef.current = e)}
+                    ink={ink}
+                    onInk={saveInk}
+                    inkHandle={inkHandle}
                   />
                 ) : (
                   <Loader2 className="spin opacity-40 m-6" />
                 )}
               </div>
             </div>
+            <AnimatePresence>{inkActive && <InkBar handle={inkHandle} />}</AnimatePresence>
           </section>
         )}
         <AnimatePresence>
@@ -549,3 +608,67 @@ function AddFileBtn({ unit, kind }: { unit: Unit; kind: 'slides' | 'handwritten'
 }
 
 export type { FileRec }
+
+function InkBar({ handle }: { handle: React.MutableRefObject<InkHandle | null> }) {
+  const { tool, color, hl, size, set } = useInk()
+  const [busy, setBusy] = useState<string | null>(null)
+  const [, tick] = useState(0)
+  useEffect(() => {
+    const t = setInterval(() => tick((x) => x + 1), 400)
+    return () => clearInterval(t)
+  }, [])
+  const h = handle.current
+  const conv = async (m: 'latex' | 'text') => {
+    setBusy(m)
+    await h?.convert(m)
+    setBusy(null)
+  }
+  return (
+    <motion.div className="ink-bar glass-strong" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }} onPointerDown={(e) => e.stopPropagation()}>
+      <div className="draw-group">
+        <button className={tool === 'pen' ? 'on' : ''} onClick={() => set({ tool: 'pen' })} title="Penna">
+          <Pen size={16} />
+        </button>
+        <button className={tool === 'hl' ? 'on' : ''} onClick={() => set({ tool: 'hl' })} title="Evidenziatore">
+          <Highlighter size={16} />
+        </button>
+        <button className={tool === 'eraser' ? 'on' : ''} onClick={() => set({ tool: 'eraser' })} title="Gomma">
+          <Eraser size={16} />
+        </button>
+      </div>
+      <div className="draw-group">
+        {(tool === 'hl' ? INK_HL : INK_COLORS).map((c) => (
+          <button key={c} className={`swatch ${(tool === 'hl' ? hl : color) === c ? 'on' : ''}`} style={{ background: c }} onClick={() => set(tool === 'hl' ? { hl: c } : { color: c, tool: 'pen' })} />
+        ))}
+      </div>
+      <div className="draw-group">
+        {INK_SIZES.map((s, i) => (
+          <button key={s} className={size === i ? 'on' : ''} onClick={() => set({ size: i })} title="Spessore">
+            <span className="dot" style={{ width: 3 + i * 3, height: 3 + i * 3 }} />
+          </button>
+        ))}
+      </div>
+      <div className="draw-group">
+        <button onClick={() => h?.undo()} disabled={!h?.canUndo} title="Annulla (⌘Z)">
+          <Undo2 size={16} />
+        </button>
+        <button onClick={() => h?.redo()} disabled={!h?.canRedo} title="Ripeti (⌘⇧Z)">
+          <Redo2 size={16} />
+        </button>
+      </div>
+      <div className="draw-group">
+        <button className="wide" onClick={() => conv('latex')} disabled={!!busy || !h?.session} title="Trasforma quello che hai appena scritto a mano in una formula LaTeX">
+          {busy === 'latex' ? <Loader2 size={15} className="spin" /> : <Sigma size={15} />} Formula
+        </button>
+        <button className="wide" onClick={() => conv('text')} disabled={!!busy || !h?.session} title="Trasforma quello che hai appena scritto a mano in testo">
+          {busy === 'text' ? <Loader2 size={15} className="spin" /> : <Type size={15} />} Testo
+        </button>
+      </div>
+      <div className="draw-group">
+        <button className="wide done" onClick={() => h?.finish()}>
+          <Check size={15} /> Fatto
+        </button>
+      </div>
+    </motion.div>
+  )
+}

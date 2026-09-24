@@ -100,8 +100,9 @@ function baseItems(): SlashItem[] {
     })
   }
   items.push(
-    { group: 'A mano', title: 'Disegno a mano', desc: 'Schizzi e schemi con Apple Pencil', icon: <PencilLine size={I} />, keys: 'disegno schizzo mano pencil penna draw sketch', run: (e, r) => e.chain().focus().deleteRange(r).insertDrawing({ height: 360, bg: 'blank' }).run() },
-    { group: 'A mano', title: 'Formula a mano', desc: 'Scrivi a mano, poi convertila in LaTeX', icon: <Sigma size={I} />, keys: 'formula mano pencil calcolo matematica', run: (e, r) => e.chain().focus().deleteRange(r).insertDrawing({ height: 220, bg: 'grid' }).run() },
+    { group: 'A mano', title: 'Matita sugli appunti', desc: 'Scrivi a mano ovunque, anche sopra il testo', icon: <PencilLine size={I} />, keys: 'matita mano pencil scrivi sottolinea evidenzia disegno', run: (e, r) => { e.chain().focus().deleteRange(r).run(); bridge.current?.startInk?.() } },
+    { group: 'A mano', title: 'Foglio da disegno', desc: 'Riquadro per schemi grandi (Apple Pencil)', icon: <PencilLine size={I} />, keys: 'disegno schizzo mano pencil penna draw sketch', run: (e, r) => e.chain().focus().deleteRange(r).insertDrawing({ height: 360, bg: 'blank' }).run() },
+    { group: 'A mano', title: 'Formula a mano', desc: 'Scrivila con la matita, poi “Formula” la converte', icon: <Sigma size={I} />, keys: 'formula mano pencil calcolo matematica', run: (e, r) => { e.chain().focus().deleteRange(r).run(); bridge.current?.startInk?.() } },
     { group: 'A mano', title: 'Pagina a quadretti', desc: 'Foglio grande per esercizi', icon: <Grid3x3 size={I} />, keys: 'quadretti foglio esercizio mano pencil', run: (e, r) => e.chain().focus().deleteRange(r).insertDrawing({ height: 1200, bg: 'grid' }).run() },
     { group: 'Slide', title: 'Ritaglia dalla slide', desc: 'Seleziona una parte della slide', icon: <Crop size={I} />, keys: 'ritaglio screenshot slide immagine snip', run: (e, r) => { e.chain().focus().deleteRange(r).run(); bridge.current?.startSnip?.() } },
     { group: 'Slide', title: 'Immagine', desc: 'Carica un’immagine', icon: <ImageIcon size={I} />, keys: 'immagine foto image', run: (e, r) => { e.chain().focus().deleteRange(r).run(); bridge.current?.pickImage?.() } },

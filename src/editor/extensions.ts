@@ -10,6 +10,7 @@ import { CodeBlock } from './CodeBlock'
 import { Callout } from './Callout'
 import { AssetImage } from './AssetImage'
 import { Drawing } from './Drawing'
+import { Ink } from './Ink'
 import { SlideLink } from './SlideLink'
 import { SlashCommand } from './SlashMenu'
 
@@ -55,6 +56,7 @@ export function buildExtensions(opts: { placeholder?: string; slash?: boolean } 
     Callout,
     AssetImage,
     Drawing,
+    Ink,
     SlideLink,
     ...(opts.slash === false ? [] : [SlashCommand]),
   ]

@@ -8,6 +8,7 @@ export interface EditorBridge {
   aiFromSlide?: (mode: 'notes' | 'explain' | 'questions') => void
   askAi?: (text: string) => void
   pickImage?: () => void
+  startInk?: () => void
 }
 
 export const bridge: { current: EditorBridge | null; editor: Editor | null } = { current: null, editor: null }

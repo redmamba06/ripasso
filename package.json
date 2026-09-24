@@ -33,6 +33,7 @@
     "marked": "^18.0.14",
     "motion": "^13.4.2",
     "pdfjs-dist": "^6.3.289",
+    "perfect-freehand": "^1.2.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4",

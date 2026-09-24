@@ -10,6 +10,8 @@ import { bridge } from './bridge'
 import { chat, SYSTEM_TUTOR } from '../lib/groq'
 import { mdToHtml } from '../lib/markdown'
 import { toast } from '../components/Toast'
+import { InkLayer, type InkHandle } from '../components/InkLayer'
+import { useInk, type InkStroke } from '../lib/ink'
 
 export interface NoteEditorProps {
   docKey: string
@@ -23,6 +25,10 @@ export interface NoteEditorProps {
   remoteStamp?: number
   onReady?: (e: Editor) => void
   className?: string
+  /** scrittura a mano sopra gli appunti */
+  ink?: InkStroke[]
+  onInk?: (s: InkStroke[]) => void
+  inkHandle?: React.MutableRefObject<InkHandle | null>
 }
 
 interface Group {
@@ -75,7 +81,10 @@ export function NoteEditor(p: NoteEditorProps) {
     editorRef.current = editor
     bridge.editor = editor
     onReady.current?.(editor)
+    // assegna gli id ai blocchi degli appunti vecchi (servono per ancorare la scrittura a mano)
+    editor.view.dispatch(editor.state.tr.setMeta('inkInit', true).setMeta('addToHistory', false))
   }, [editor])
+  const inkOn = useInk((s) => s.active) && !!p.onInk
 
   // salva quando si esce/cambia nota
   useEffect(() => {
@@ -205,7 +214,20 @@ export function NoteEditor(p: NoteEditorProps) {
         <FormatBar editor={editor} />
       </BubbleMenu>
 
-      <EditorContent editor={editor} className="editor-content" />
+      <div
+        className={`ink-wrap ${inkOn ? 'ink-on' : ''}`}
+        onPointerDownCapture={(e) => {
+          // prendi la Apple Pencil e scrivi: si attiva da sola la modalità matita
+          if (p.onInk && e.pointerType === 'pen' && !useInk.getState().active) {
+            e.preventDefault()
+            e.stopPropagation()
+            useInk.getState().setActive(true)
+          }
+        }}
+      >
+        <EditorContent editor={editor} className="editor-content" />
+        {p.ink && <InkLayer editor={editor} strokes={p.ink} onChange={p.onInk} readOnly={!p.onInk} handle={p.inkHandle} />}
+      </div>
     </div>
   )
 }

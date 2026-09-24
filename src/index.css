@@ -1168,6 +1168,7 @@ kbd {
 }
 .pane-notes {
   background: var(--surface);
+  position: relative;
 }
 .notes-scroll {
   flex: 1;
@@ -1727,8 +1728,8 @@ kbd {
 .draw-surface {
   position: relative;
   border-radius: 12px;
-  border: 1px solid var(--line-strong);
-  background-color: #fffdf8;
+  border: 1px dashed transparent;
+  background-color: transparent;
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
@@ -1744,7 +1745,11 @@ kbd {
   background-image: linear-gradient(rgba(60, 90, 200, 0.16) 1px, transparent 1px);
   background-size: 100% calc(var(--gs) * 1.2);
 }
+.draw-block:hover .draw-surface {
+  border-color: var(--line-strong);
+}
 .draw-surface.active {
+  background-color: #fffdf8;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
@@ -2866,4 +2871,72 @@ kbd {
   border-color: var(--accent);
   color: var(--accent);
   animation: blink 1s infinite;
+}
+
+/* scrittura a mano sopra gli appunti */
+@layer components {
+  .ink-wrap {
+    position: relative;
+  }
+  .ink-wrap.ink-on {
+    padding-bottom: 45vh;
+  }
+  .ink-host {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .ink-svg {
+    position: absolute;
+    left: 0;
+    top: 0;
+    overflow: visible;
+  }
+  .ink-capture {
+    position: absolute;
+    inset: 0;
+    pointer-events: auto;
+    touch-action: none;
+    cursor: crosshair;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  .ink-capture.tool-eraser {
+    cursor: cell;
+  }
+  .ink-wrap.ink-on .editor-content {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .ink-wrap.ink-on::before {
+    content: '';
+    position: absolute;
+    inset: -8px -10px;
+    border-radius: 14px;
+    outline: 2px dashed color-mix(in srgb, var(--accent) 35%, transparent);
+    pointer-events: none;
+  }
+  .ink-bar {
+    position: absolute;
+    left: 50%;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    z-index: 30;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    padding: 6px;
+    border-radius: 16px;
+    max-width: calc(100% - 20px);
+  }
+  .ink-bar .draw-group {
+    background: var(--surface-2);
+  }
+}
+.dark .draw-surface {
+  background-color: #fffdf8;
 }

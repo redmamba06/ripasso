@@ -7,10 +7,17 @@ import { ArrowLeft, Printer, FileDown, ExternalLink, List } from 'lucide-react'
 import { db, alive, type Unit } from '../lib/db'
 import { buildExtensions } from '../editor/extensions'
 import { docToMarkdown, download } from '../lib/export'
+import { InkLayer } from '../components/InkLayer'
+import type { InkStroke } from '../lib/ink'
 
-function ReadOnly({ doc }: { doc: JSONContent }) {
+function ReadOnly({ doc, ink }: { doc: JSONContent; ink?: InkStroke[] }) {
   const editor = useEditor({ extensions: buildExtensions({ slash: false }), content: doc, editable: false, immediatelyRender: true }, [JSON.stringify(doc).length])
-  return <EditorContent editor={editor} className="editor-content readonly" />
+  return (
+    <div className="ink-wrap">
+      <EditorContent editor={editor} className="editor-content readonly" />
+      {editor && ink && ink.length > 0 && <InkLayer editor={editor} strokes={ink} readOnly />}
+    </div>
+  )
 }
 
 export default function Summary() {
@@ -105,7 +112,7 @@ export default function Summary() {
                   <ExternalLink size={14} />
                 </button>
               </div>
-              <ReadOnly doc={noteOf(u)!.doc!} />
+              <ReadOnly doc={noteOf(u)!.doc!} ink={noteOf(u)!.ink} />
             </motion.section>
           ))}
         </article>
