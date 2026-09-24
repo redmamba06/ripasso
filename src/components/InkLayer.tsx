@@ -385,6 +385,8 @@ export function InkLayer({
   const finish = () => {
     useInk.getState().setActive(false)
     session.current = new Set()
+    // si torna a scrivere al PC: gli appunti ridiventano modificabili subito (serve per mettere il cursore)
+    if (!readOnly && !editor.isEditable) editor.setEditable(true, false)
     // il cursore va sotto l'ultimo disegno fatto nel vuoto
     const bid = lastSpace.current
     lastSpace.current = null

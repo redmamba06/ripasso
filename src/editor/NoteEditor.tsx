@@ -14,6 +14,9 @@ import { InkLayer, type InkHandle } from '../components/InkLayer'
 import { useInk, type InkStroke } from '../lib/ink'
 import { useSettings } from '../lib/settings'
 
+/** iPad/tablet: iPadOS si presenta come Mac, ma ha lo schermo touch */
+const isTouchDevice = () => navigator.maxTouchPoints > 1 || window.matchMedia('(pointer: coarse)').matches
+
 export interface NoteEditorProps {
   docKey: string
   initial: JSONContent | null
@@ -87,23 +90,77 @@ export function NoteEditor(p: NoteEditorProps) {
   }, [editor])
   const inkOn = useInk((s) => s.active) && !!p.onInk
 
-  // blocca Scribble (iPadOS converte in testo ciò che la Pencil scrive nei campi di testo)
-  // quando l'utente ha scelto di tenere la scrittura a mano
+  // ---- Scribble (iPadOS trasforma in testo ciò che la Pencil scrive vicino a un campo modificabile) ----
+  // Unico modo affidabile per evitarlo: quando la Pencil è in gioco gli appunti NON devono essere modificabili.
+  // - matita attiva → sempre non modificabili
+  // - iPad con "Pencil: a mano" → modificabili solo dopo un tocco col dito, finché si scrive con la tastiera
   const inkWrap = useRef<HTMLDivElement>(null)
+  const typing = useRef(false)
+  const pencilMode = useSettings((s) => s.pencilMode)
+  const inkActive = useInk((s) => s.active)
+  const applyEditable = useCallback(() => {
+    if (!editor || editor.isDestroyed || !p.onInk) return
+    const guard = useSettings.getState().pencilMode === 'ink' && isTouchDevice()
+    const want = !useInk.getState().active && (!guard || typing.current)
+    if (editor.isEditable !== want) editor.setEditable(want, false)
+  }, [editor, p.onInk])
+  useEffect(() => applyEditable(), [applyEditable, pencilMode, inkActive])
+
   useEffect(() => {
     const el = inkWrap.current
-    if (!el || !p.onInk) return
-    const stylus = (e: TouchEvent) => [...e.touches, ...e.changedTouches].some((t) => (t as Touch & { touchType?: string }).touchType === 'stylus')
-    const block = (e: TouchEvent) => {
-      if (useSettings.getState().pencilMode === 'ink' && stylus(e)) e.preventDefault()
+    if (!el || !editor || !p.onInk) return
+    const kind = (e: TouchEvent) => {
+      const t = (e.touches[0] ?? e.changedTouches[0]) as (Touch & { touchType?: string }) | undefined
+      return t?.touchType === 'stylus' ? 'pen' : 'finger'
     }
-    el.addEventListener('touchstart', block, { passive: false })
-    el.addEventListener('touchmove', block, { passive: false })
+    const penNear = () => {
+      if (useSettings.getState().pencilMode !== 'ink') return
+      typing.current = false
+      if (editor.isFocused) (editor.view.dom as HTMLElement).blur()
+      applyEditable()
+    }
+    const onTouch = (e: TouchEvent) => {
+      if (kind(e) === 'pen') {
+        penNear()
+        if (useSettings.getState().pencilMode === 'ink') e.preventDefault()
+      } else if (!useInk.getState().active && !typing.current) {
+        // tocco col dito: si può scrivere al PC / con la tastiera
+        typing.current = true
+        applyEditable()
+      }
+    }
+    const onPointer = (e: PointerEvent) => e.pointerType === 'pen' && penNear()
+    const onBlur = () =>
+      setTimeout(() => {
+        if (!editor.isFocused) {
+          typing.current = false
+          applyEditable()
+        }
+      }, 400)
+    el.addEventListener('touchstart', onTouch, { passive: false, capture: true })
+    el.addEventListener('touchmove', onTouch, { passive: false, capture: true })
+    // la Pencil che si avvicina (iPad con passaggio del mouse) blocca subito la scrittura in testo
+    el.addEventListener('pointerover', onPointer, true)
+    el.addEventListener('pointerdown', onPointer, true)
+    editor.on('blur', onBlur)
     return () => {
-      el.removeEventListener('touchstart', block)
-      el.removeEventListener('touchmove', block)
+      el.removeEventListener('touchstart', onTouch, { capture: true } as EventListenerOptions)
+      el.removeEventListener('touchmove', onTouch, { capture: true } as EventListenerOptions)
+      el.removeEventListener('pointerover', onPointer, true)
+      el.removeEventListener('pointerdown', onPointer, true)
+      editor.off('blur', onBlur)
     }
-  }, [p.onInk, editor])
+  }, [p.onInk, editor, applyEditable])
+
+  /** "Fatto" con la matita: si torna a scrivere al PC sotto il disegno */
+  const wasInk = useRef(false)
+  useEffect(() => {
+    if (wasInk.current && !inkActive && p.onInk && editor && !editor.isDestroyed) {
+      typing.current = true
+      applyEditable()
+    }
+    wasInk.current = inkActive
+  }, [inkActive, p.onInk, editor, applyEditable])
 
   // salva quando si esce/cambia nota
   useEffect(() => {

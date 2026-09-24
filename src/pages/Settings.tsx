@@ -114,7 +114,7 @@ export default function SettingsPage() {
             </button>
           </div>
           <p className="text-[12.5px] opacity-60 mt-1.5">
-            “A mano”: scrivi con la Pencil ovunque e resta la tua calligrafia (Scribble è disattivato negli appunti). “Testo”: l’iPad trasforma la scrittura in testo digitato. Puoi cambiarlo al volo anche dalla barra dell’unità.
+            “A mano”: scrivi con la Pencil ovunque e resta la tua calligrafia (Scribble è disattivato negli appunti). “Testo”: l’iPad trasforma la scrittura in testo digitato. Puoi cambiarlo al volo anche dalla barra dell’unità. Se l’iPad continuasse a convertire in testo, disattiva Scribble in Impostazioni dell’iPad → Apple Pencil → Scribble.
           </p>
         </div>
       </motion.section>
