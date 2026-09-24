@@ -36,6 +36,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'zoomOut', label: 'Riduci slide', group: 'Slide e appunti', def: 'Alt+-' },
 
   { id: 'draw', label: 'Matita: scrivi a mano sugli appunti (attiva/disattiva)', group: 'Disegno a mano', def: 'Mod+Shift+D' },
+  { id: 'pencilMode', label: 'Apple Pencil: a mano ↔ testo (Scribble)', group: 'Disegno a mano', def: 'Alt+T' },
   { id: 'drawFormula', label: 'Converti la scrittura a mano in formula', group: 'Disegno a mano', def: 'Mod+Shift+F', hint: 'con la matita attiva' },
   { id: 'toolPen', label: 'Penna', group: 'Disegno a mano', def: 'Alt+P', hint: 'mentre disegni' },
   { id: 'toolHl', label: 'Evidenziatore', group: 'Disegno a mano', def: 'Alt+H', hint: 'mentre disegni' },

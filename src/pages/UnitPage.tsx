@@ -23,6 +23,7 @@ import { toast } from '../components/Toast'
 import { useUI } from '../lib/ui'
 import { useInk, INK_COLORS, INK_HL, INK_SIZES, type InkStroke } from '../lib/ink'
 import type { InkHandle } from '../components/InkLayer'
+import { PencilModeToggle } from '../components/PencilMode'
 import { registerShortcuts } from '../lib/shortcuts'
 import { currentRef } from '../lib/viewer'
 import { NodeSelection } from '@tiptap/pm/state'
@@ -486,6 +487,7 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
         <button className={`btn btn-sm ${inkActive ? 'btn-primary' : ''}`} title="Matita: scrivi a mano ovunque sugli appunti (anche sopra il testo)" onClick={toggleInk}>
           <PencilLine size={15} /> <span className="hidden xl:inline">{inkActive ? 'Fine matita' : 'Matita'}</span>
         </button>
+        <PencilModeToggle />
         <button className={`btn btn-sm ${ai ? 'btn-primary' : 'btn-ai'}`} onClick={() => setAi(!ai)}>
           {aiBusy ? <Loader2 size={15} className="spin" /> : <Sparkles size={15} />} <span className="hidden sm:inline">AI</span>
         </button>
@@ -663,6 +665,9 @@ function InkBar({ handle }: { handle: React.MutableRefObject<InkHandle | null> }
         <button className="wide" onClick={() => conv('text')} disabled={!!busy || !h?.session} title="Trasforma quello che hai appena scritto a mano in testo">
           {busy === 'text' ? <Loader2 size={15} className="spin" /> : <Type size={15} />} Testo
         </button>
+      </div>
+      <div className="draw-group">
+        <PencilModeToggle compact />
       </div>
       <div className="draw-group">
         <button className="wide done" onClick={() => h?.finish()}>

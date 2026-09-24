@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Menu } from 'lucide-react'
 import { Sidebar } from './components/Sidebar'
-import { Toaster } from './components/Toast'
+import { Toaster, toast } from './components/Toast'
 import { SearchPalette } from './components/SearchPalette'
 import { useUI } from './lib/ui'
 import { installShortcuts, registerShortcuts } from './lib/shortcuts'
@@ -54,6 +54,11 @@ function Shell() {
       home: () => nav('/'),
       settings: () => nav('/settings'),
       newCourse: () => ui().setNewCourse(true),
+      pencilMode: () => {
+        const next = useSettings.getState().pencilMode === 'ink' ? 'text' : 'ink'
+        useSettings.getState().set({ pencilMode: next })
+        toast(next === 'ink' ? 'Apple Pencil: la scrittura resta a mano' : 'Apple Pencil: la scrittura diventa testo (Scribble)', 'info')
+      },
     })
   }, [nav])
 

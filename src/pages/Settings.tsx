@@ -103,6 +103,20 @@ export default function SettingsPage() {
             <span className="block text-[12.5px] opacity-60">Ogni nuovo blocco di appunti viene collegato alla slide aperta. Puoi cambiarlo o toglierlo con la matita accanto al numero.</span>
           </span>
         </label>
+        <div className="mt-4">
+          <div className="label">Apple Pencil sugli appunti</div>
+          <div className="seg w-fit">
+            <button className={s.pencilMode === 'ink' ? 'on' : ''} onClick={() => s.set({ pencilMode: 'ink' })}>
+              Resta scrittura a mano
+            </button>
+            <button className={s.pencilMode === 'text' ? 'on' : ''} onClick={() => s.set({ pencilMode: 'text' })}>
+              Converti in testo (Scribble)
+            </button>
+          </div>
+          <p className="text-[12.5px] opacity-60 mt-1.5">
+            “A mano”: scrivi con la Pencil ovunque e resta la tua calligrafia (Scribble è disattivato negli appunti). “Testo”: l’iPad trasforma la scrittura in testo digitato. Puoi cambiarlo al volo anche dalla barra dell’unità.
+          </p>
+        </div>
       </motion.section>
 
       <motion.section {...card(1)} className="card mb-4">

@@ -15,6 +15,8 @@ export interface Settings {
   splitRatio: number
   /** combinazioni personalizzate per le scorciatoie (id azione → combinazione, '' = disattivata) */
   shortcuts: Record<string, string>
+  /** Apple Pencil sugli appunti: 'ink' = resta scrittura a mano, 'text' = Scribble di iPadOS converte in testo */
+  pencilMode: 'ink' | 'text'
   set: (p: Partial<Omit<Settings, 'set'>>) => void
 }
 
@@ -38,6 +40,7 @@ export const useSettings = create<Settings>()(
       editorWidth: 'narrow',
       splitRatio: 0.5,
       shortcuts: {},
+      pencilMode: 'ink',
       set: (p) => set(p),
     }),
     {
@@ -57,4 +60,4 @@ export const settings = () => useSettings.getState()
 
 /** Impostazioni che viaggiano col proprio account (le altre restano per-dispositivo). */
 // la chiave Groq NON viaggia: l'AI passa dal server (funzione `groq` su Supabase)
-export const SYNCED_SETTINGS = ['model', 'visionModel', 'autoLink', 'shortcuts'] as const
+export const SYNCED_SETTINGS = ['model', 'visionModel', 'autoLink', 'shortcuts', 'pencilMode'] as const

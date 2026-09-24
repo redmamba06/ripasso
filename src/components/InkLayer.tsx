@@ -25,6 +25,8 @@ export interface InkHandle {
   redo: () => void
   convert: (mode: 'latex' | 'text') => Promise<void>
   finish: () => void
+  /** inizia un tratto da un evento esterno (Pencil sul testo) */
+  start: (e: PointerEvent) => void
   canUndo: boolean
   canRedo: boolean
   session: number
@@ -211,20 +213,30 @@ export function InkLayer({
     if (keep.length !== src.length) commit(keep)
   }
 
-  const down = (e: React.PointerEvent) => {
+  // i movimenti si seguono sulla finestra: un tratto può iniziare anche da fuori
+  // (es. la Pencil che tocca il testo prima che la modalità matita sia attiva)
+  const fns = useRef({ move: (_e: PointerEvent) => {}, up: () => {} })
+  const begin = (e: PointerEvent) => {
     if (e.pointerType === 'pen') penSeen = true
-    try {
-      ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-    } catch {
-      /* */
+    if (cur.current) return
+    const id = e.pointerId
+    const onMove = (ev: PointerEvent) => ev.pointerId === id && fns.current.move(ev)
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== id) return
+      window.removeEventListener('pointermove', onMove, true)
+      window.removeEventListener('pointerup', onUp, true)
+      window.removeEventListener('pointercancel', onUp, true)
+      fns.current.up()
     }
-    e.preventDefault()
+    window.addEventListener('pointermove', onMove, true)
+    window.addEventListener('pointerup', onUp, true)
+    window.addEventListener('pointercancel', onUp, true)
     if (e.pointerType === 'touch' && penSeen) {
       cur.current = { pts: [], mode: 'scroll', lastY: e.clientY }
       return
     }
     const p = pt(e)
-    if (tool === 'eraser') {
+    if (useInk.getState().tool === 'eraser') {
       cur.current = { pts: [], mode: 'erase', lastY: 0 }
       eraseAt(p[0], p[1])
       return
@@ -233,7 +245,7 @@ export function InkLayer({
     setLive([p])
   }
 
-  const move = (e: React.PointerEvent) => {
+  fns.current.move = (e: PointerEvent) => {
     const c = cur.current
     if (!c) return
     if (c.mode === 'scroll') {
@@ -242,8 +254,8 @@ export function InkLayer({
       c.lastY = e.clientY
       return
     }
-    const co = (e.nativeEvent as PointerEvent).getCoalescedEvents?.()
-    const evs = co && co.length ? co : [e.nativeEvent]
+    const co = e.getCoalescedEvents?.()
+    const evs = co && co.length ? co : [e]
     if (c.mode === 'erase') {
       for (const ev of evs) {
         const p = pt(ev)
@@ -255,7 +267,7 @@ export function InkLayer({
     setLive([...c.pts])
   }
 
-  const up = () => {
+  fns.current.up = () => {
     const c = cur.current
     cur.current = null
     setLive(null)
@@ -294,6 +306,7 @@ export function InkLayer({
       }
     }
     if (!anchor) return
+    const { tool, color, hl, size } = useInk.getState()
     const s: InkStroke = {
       id: sid(),
       b: anchor.bid,
@@ -416,6 +429,7 @@ export function InkLayer({
       },
       convert: (m) => convert(m).catch((e) => toast((e as Error).message, 'error')),
       finish,
+      start: begin,
       canUndo: undoStack.current.length > 0,
       canRedo: redoStack.current.length > 0,
       session: session.current.size,
@@ -446,7 +460,15 @@ export function InkLayer({
           />
         )}
       </svg>
-      {active && <div className={`ink-capture tool-${tool}`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />}
+      {active && (
+        <div
+          className={`ink-capture tool-${tool}`}
+          onPointerDown={(e) => {
+            e.preventDefault()
+            begin(e.nativeEvent)
+          }}
+        />
+      )}
     </div>
   )
 }

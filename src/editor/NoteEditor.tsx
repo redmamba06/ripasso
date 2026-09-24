@@ -12,6 +12,7 @@ import { mdToHtml } from '../lib/markdown'
 import { toast } from '../components/Toast'
 import { InkLayer, type InkHandle } from '../components/InkLayer'
 import { useInk, type InkStroke } from '../lib/ink'
+import { useSettings } from '../lib/settings'
 
 export interface NoteEditorProps {
   docKey: string
@@ -85,6 +86,24 @@ export function NoteEditor(p: NoteEditorProps) {
     editor.view.dispatch(editor.state.tr.setMeta('inkInit', true).setMeta('addToHistory', false))
   }, [editor])
   const inkOn = useInk((s) => s.active) && !!p.onInk
+
+  // blocca Scribble (iPadOS converte in testo ciò che la Pencil scrive nei campi di testo)
+  // quando l'utente ha scelto di tenere la scrittura a mano
+  const inkWrap = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = inkWrap.current
+    if (!el || !p.onInk) return
+    const stylus = (e: TouchEvent) => [...e.touches, ...e.changedTouches].some((t) => (t as Touch & { touchType?: string }).touchType === 'stylus')
+    const block = (e: TouchEvent) => {
+      if (useSettings.getState().pencilMode === 'ink' && stylus(e)) e.preventDefault()
+    }
+    el.addEventListener('touchstart', block, { passive: false })
+    el.addEventListener('touchmove', block, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', block)
+      el.removeEventListener('touchmove', block)
+    }
+  }, [p.onInk, editor])
 
   // salva quando si esce/cambia nota
   useEffect(() => {
@@ -215,14 +234,15 @@ export function NoteEditor(p: NoteEditorProps) {
       </BubbleMenu>
 
       <div
+        ref={inkWrap}
         className={`ink-wrap ${inkOn ? 'ink-on' : ''}`}
         onPointerDownCapture={(e) => {
-          // prendi la Apple Pencil e scrivi: si attiva da sola la modalità matita
-          if (p.onInk && e.pointerType === 'pen' && !useInk.getState().active) {
-            e.preventDefault()
-            e.stopPropagation()
-            useInk.getState().setActive(true)
-          }
+          // Apple Pencil sul testo in modalità "scrittura a mano": si scrive subito, senza passare dal testo
+          if (!p.onInk || e.pointerType !== 'pen' || useSettings.getState().pencilMode !== 'ink' || useInk.getState().active) return
+          e.preventDefault()
+          e.stopPropagation()
+          useInk.getState().setActive(true)
+          p.inkHandle?.current?.start(e.nativeEvent)
         }}
       >
         <EditorContent editor={editor} className="editor-content" />
