@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { TextLayer } from 'pdfjs-dist'
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Crop, Maximize2, Loader2, X, PenLine } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Crop, Maximize2, Loader2, X, PenLine, RefreshCw } from 'lucide-react'
 import { loadPdf, renderPageToCanvas } from '../lib/pdf'
 import { useViewer } from '../lib/viewer'
 import { registerShortcuts } from '../lib/shortcuts'
@@ -11,9 +11,10 @@ interface Props {
   onSnip: (blob: Blob, page: number) => void
   onTranscribe?: (pages: number[]) => void
   transcribing?: boolean
+  onReplace?: () => void
 }
 
-export function PdfViewer({ fileId, onSnip, onTranscribe, transcribing }: Props) {
+export function PdfViewer({ fileId, onSnip, onTranscribe, transcribing, onReplace }: Props) {
   const [tMenu, setTMenu] = useState(false)
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -232,6 +233,11 @@ export function PdfViewer({ fileId, onSnip, onTranscribe, transcribing }: Props)
         <button className="icon-btn sm" onClick={() => setZoom((z) => Math.min(3, +(z + 0.15).toFixed(2)))} title="Ingrandisci">
           <ZoomIn size={16} />
         </button>
+        {onReplace && (
+          <button className="icon-btn sm" onClick={onReplace} title="Carica una versione aggiornata di questo PDF (es. con le annotazioni fatte a lezione): gli appunti restano">
+            <RefreshCw size={15} />
+          </button>
+        )}
         {onTranscribe && (
           <div className="relative">
             <button className="btn btn-sm" disabled={transcribing} onClick={() => setTMenu(!tMenu)} title="Trasforma in testo gli appunti scritti a mano su questa slide">

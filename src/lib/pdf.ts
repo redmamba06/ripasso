@@ -2,23 +2,27 @@ import * as pdfjs from 'pdfjs-dist'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { getBlob } from './sync'
+import { db } from './db'
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
 const cache = new Map<string, Promise<PDFDocumentProxy>>()
 
-export function loadPdf(fileId: string): Promise<PDFDocumentProxy> {
-  if (!cache.has(fileId)) {
+/** Apre un PDF (per versione: dopo "nuova versione" si riapre quella aggiornata). */
+export async function loadPdf(fileId: string): Promise<PDFDocumentProxy> {
+  const rev = (await db.files.get(fileId))?.rev ?? 0
+  const key = `${fileId}:${rev}`
+  if (!cache.has(key)) {
     const p = (async () => {
       const blob = await getBlob(fileId)
       if (!blob) throw new Error('File non disponibile su questo dispositivo (accedi per scaricarlo dal cloud).')
       const data = new Uint8Array(await blob.arrayBuffer())
       return pdfjs.getDocument({ data }).promise
     })()
-    p.catch(() => cache.delete(fileId))
-    cache.set(fileId, p)
+    p.catch(() => cache.delete(key))
+    cache.set(key, p)
   }
-  return cache.get(fileId)!
+  return cache.get(key)!
 }
 
 export async function pdfFromBlob(blob: Blob) {

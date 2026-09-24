@@ -10,6 +10,7 @@ import { useViewer, encodeRef } from '../lib/viewer'
 import { useSettings } from '../lib/settings'
 import { onRemoteChange } from '../lib/sync'
 import { addFiles, isPdf } from '../lib/files'
+import { replaceFile } from '../lib/versions'
 import { loadPdf, pageText, pageImage } from '../lib/pdf'
 import { chat, SYSTEM_TUTOR } from '../lib/groq'
 import { mdToHtml } from '../lib/markdown'
@@ -256,6 +257,30 @@ export default function UnitPage() {
       }
     },
     [slideCtx, course?.name, insertMarkdown],
+  )
+
+  // ---- nuova versione del PDF (es. slide annotate a lezione) ----
+  const [dropNew, setDropNew] = useState(false)
+  const allFiles = useMemo(() => (data && 'allCourseFiles' in data ? (data.allCourseFiles ?? []) : []), [data])
+  const openFile = allFiles.find((f) => f.id === fileId) ?? null
+  const newVersion = useCallback(
+    async (rec: FileRec, given?: File) => {
+      const f = given ?? (await pickFiles('application/pdf,.pdf', false))[0]
+      if (!f) return
+      try {
+        setTProgress('Carico la nuova versione…')
+        const r = await replaceFile(rec, f, { editor: editorRef.current, openNoteId: unit?.id, onProgress: setTProgress })
+        const diff = r.newPages - r.oldPages
+        toast(
+          `Nuova versione caricata${diff ? ` (${diff > 0 ? '+' : ''}${diff} pagine)` : ''}` + (r.moved ? ` · ${r.moved} collegamenti spostati sulle pagine giuste` : '') + ' · appunti intatti',
+        )
+      } catch (e) {
+        toast((e as Error).message, 'error')
+      } finally {
+        setTProgress(null)
+      }
+    },
+    [unit?.id],
   )
 
   // ---- appunti scritti a mano → testo ----
@@ -509,9 +534,32 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
 
       <div className={`split ${mode}`} ref={split} style={{ ['--ratio' as string]: ratio }}>
         {showSlides && (
-          <section className="pane pane-slides">
+          <section
+            className={`pane pane-slides ${dropNew ? 'drop-new' : ''}`}
+            onDragOver={(e) => {
+              if (!openFile || !e.dataTransfer.types.includes('Files')) return
+              e.preventDefault()
+              setDropNew(true)
+            }}
+            onDragLeave={() => setDropNew(false)}
+            onDrop={(e) => {
+              setDropNew(false)
+              const f = [...e.dataTransfer.files].find((x) => isPdf(x))
+              if (!openFile || !f) return
+              e.preventDefault()
+              if (confirm(`Sostituire “${openFile.name}” con la versione aggiornata “${f.name}”?\nGli appunti, la scrittura a mano e i collegamenti alle slide restano.`)) void newVersion(openFile, f)
+            }}
+          >
+            {dropNew && <div className="drop-hint">Rilascia per caricare la nuova versione del PDF</div>}
             {fileId ? (
-              <PdfViewer key={fileId} fileId={fileId} onSnip={onSnip} onTranscribe={transcribe} transcribing={!!tProgress} />
+              <PdfViewer
+                key={fileId + ':' + (openFile?.rev ?? 0)}
+                fileId={fileId}
+                onSnip={onSnip}
+                onTranscribe={transcribe}
+                transcribing={!!tProgress}
+                onReplace={() => openFile && void newVersion(openFile)}
+              />
             ) : (
               <div className="p-5 flex flex-col gap-3 h-full justify-center">
                 <Dropzone

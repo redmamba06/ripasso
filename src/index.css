@@ -2967,3 +2967,32 @@ kbd {
 .summary-logo:has(.course-logo) {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
+.pane-slides {
+  position: relative;
+}
+.pane-slides.drop-new::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 2px dashed var(--accent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  pointer-events: none;
+  z-index: 20;
+}
+.drop-hint {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 21;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 16px;
+  border-radius: 99px;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  white-space: nowrap;
+}

@@ -138,8 +138,11 @@ async function uploadBlobs(c: SupabaseClient, userId: string) {
     for (const r of pending) {
       const b = await db.blobs.get(r.id)
       if (!b) continue
-      const { error } = await c.storage.from(BUCKET).upload(`${userId}/${r.id}`, b.blob, { upsert: true, contentType: r.mime })
+      const rev = (r as { rev?: number }).rev ?? 0
+      const { error } = await c.storage.from(BUCKET).upload(blobPath(userId, r.id, rev), b.blob, { upsert: true, contentType: r.mime })
       if (error) throw error
+      // la versione precedente non serve più
+      if (rev > 0) void c.storage.from(BUCKET).remove([blobPath(userId, r.id, rev - 1)])
       await db[t].update(r.id, { uploaded: 1, dirty: 1, updatedAt: Date.now() })
     }
   }
@@ -182,19 +185,24 @@ export async function syncNow() {
   }
 }
 
+/** Ogni versione di un file ha il suo percorso (niente copie vecchie in cache). */
+const blobPath = (userId: string, id: string, rev: number) => (rev > 0 ? `${userId}/${id}.v${rev}` : `${userId}/${id}`)
+
 /** Restituisce il contenuto binario di un file/immagine: locale o scaricato dal cloud. */
 const inflight = new Map<string, Promise<Blob | null>>()
 export function getBlob(id: string): Promise<Blob | null> {
   if (inflight.has(id)) return inflight.get(id)!
   const p = (async () => {
     const local = await db.blobs.get(id)
-    if (local) return local.blob
+    const rev = (await db.files.get(id))?.rev ?? 0
+    // su questo dispositivo c'è già la versione giusta
+    if (local && (local.rev ?? 0) >= rev) return local.blob
     const c = supa()
     const user = useSync.getState().user
-    if (!c || !user) return null
-    const { data, error } = await c.storage.from(BUCKET).download(`${user.id}/${id}`)
-    if (error || !data) return null
-    await db.blobs.put({ id, blob: data })
+    if (!c || !user) return local?.blob ?? null
+    const { data, error } = await c.storage.from(BUCKET).download(blobPath(user.id, id, rev))
+    if (error || !data) return local?.blob ?? null
+    await db.blobs.put({ id, blob: data, rev })
     return data
   })()
   inflight.set(id, p)

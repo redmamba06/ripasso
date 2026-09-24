@@ -58,6 +58,8 @@ export interface FileRec extends Base {
   kind: FileKind
   uploaded?: 0 | 1
   pageCount?: number
+  /** versione del PDF (aumenta quando si carica una versione aggiornata) */
+  rev?: number
 }
 
 export interface Note extends Base {
@@ -142,6 +144,8 @@ export interface Flashcard extends Base {
 export interface BlobRec {
   id: string
   blob: Blob
+  /** versione del file a cui corrisponde il contenuto salvato sul dispositivo */
+  rev?: number
 }
 
 export interface MetaRec {

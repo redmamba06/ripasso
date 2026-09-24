@@ -24,6 +24,7 @@ import {
   Play,
   ScrollText,
   CalendarDays,
+  RefreshCw,
 } from 'lucide-react'
 import { db, alive, put, patch, remove, uid, deleteCourseDeep, deleteUnitDeep, type Course, type Unit, type FileRec, type FileKind, type Quiz } from '../lib/db'
 import { addFiles, newUnit, fmtSize, downloadFile, isPdf } from '../lib/files'
@@ -36,6 +37,7 @@ import { toast } from '../components/Toast'
 import { extractQuiz } from '../lib/quiz'
 import { daysTo } from './Home'
 import { PlanTab } from '../components/PlanTab'
+import { replaceFile } from '../lib/versions'
 import { registerShortcuts } from '../lib/shortcuts'
 
 const TABS = [
@@ -277,6 +279,25 @@ function FilesTab({ course, units, files }: { course: Course; units: Unit[]; fil
                         </option>
                       ))}
                     </select>
+                    {isPdf(f) && (
+                      <button
+                        className="icon-btn sm"
+                        title="Carica una versione aggiornata (gli appunti restano)"
+                        onClick={async () => {
+                          const [nf] = await pickFiles('application/pdf,.pdf', false)
+                          if (!nf) return
+                          toast('Carico la nuova versione…', 'info')
+                          try {
+                            const r = await replaceFile(f, nf)
+                            toast(`Nuova versione di “${f.name}” caricata${r.moved ? ` · ${r.moved} collegamenti aggiornati` : ''}`)
+                          } catch (e) {
+                            toast((e as Error).message, 'error')
+                          }
+                        }}
+                      >
+                        <RefreshCw size={14} />
+                      </button>
+                    )}
                     <button
                       className="icon-btn sm"
                       title="Scarica"
