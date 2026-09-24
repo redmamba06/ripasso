@@ -39,8 +39,10 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="flex items-center gap-2.5 px-3 pt-3 pb-2">
-        <img src="./favicon.svg" className="w-8 h-8 rounded-[10px] shadow-sm" alt="" />
-        <div className="font-semibold text-[17px] tracking-tight flex-1">Ripasso</div>
+        <button className="brand" onClick={() => nav('/')} title="Vai alla Home">
+          <img src="./favicon.svg" className="w-8 h-8 rounded-[10px] shadow-sm" alt="" />
+          <span className="font-semibold text-[17px] tracking-tight">Ripasso</span>
+        </button>
         <button className="icon-btn md:hidden" onClick={() => setSidebar(false)} aria-label="Chiudi menu">
           <PanelLeftClose size={18} />
         </button>

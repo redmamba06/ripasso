@@ -2996,3 +2996,21 @@ kbd {
   pointer-events: none;
   white-space: nowrap;
 }
+.brand {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 2px 6px 2px 2px;
+  margin-left: -2px;
+  border-radius: 12px;
+  text-align: left;
+  transition: background 0.15s, transform 0.12s;
+}
+.brand:hover {
+  background: var(--accent-soft);
+}
+.brand:active {
+  transform: scale(0.97);
+}
