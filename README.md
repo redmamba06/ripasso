@@ -10,16 +10,20 @@ npm run dev        # http://localhost:5173
 npm run build      # build di produzione in dist/
 ```
 
-La chiave Groq per lo sviluppo sta in `.env.local` (`VITE_GROQ_KEY=...`, file ignorato da git). **Non viene inclusa nella build pubblicata**: sugli altri dispositivi va incollata in *Impostazioni → Intelligenza artificiale*, oppure arriva da sola dopo l'accesso al cloud (viene salvata nel proprio account).
+La chiave Groq per lo sviluppo sta in `.env.local` (`VITE_GROQ_KEY=...`, ignorato da git) e **non finisce nella build**.
 
-## Sincronizzazione tra dispositivi (Supabase)
+## Cloud (Supabase) e AI
 
-1. Crea un progetto gratuito su supabase.com.
-2. SQL Editor → incolla ed esegui `supabase/schema.sql` (tabella `records` con RLS, realtime, bucket `blobs` per PDF e immagini).
-3. Authentication → Providers → Email: attivo (per comodità si può disattivare “Confirm email”).
-4. Nell'app: *Impostazioni → Sincronizzazione* → incolla Project URL e chiave `anon` → Registrati / Accedi.
+L'app è già collegata al progetto Supabase `ufcfpxqfhvbnpunfzrea` (URL e chiave anon pubblica in `src/lib/settings.ts`): basta registrarsi/accedere in *Impostazioni*.
 
-Funzionamento: i dati vivono in IndexedDB (l'app funziona offline) e si sincronizzano con Supabase con last-write-wins per record; PDF e ritagli vanno nello storage e vengono scaricati sugli altri dispositivi quando servono.
+- Dati: tabella `records` con RLS (ognuno vede solo i propri), realtime tra dispositivi; PDF e immagini nel bucket privato `blobs`. Schema in `supabase/schema.sql`.
+- AI: la funzione `supabase/functions/groq` fa da ponte verso Groq. La chiave è nel segreto `GROQ_API_KEY` e risponde solo alle email in `ALLOWED_EMAILS` → la chiave non è mai nel browser né nel repository. Una chiave personale inserita in Impostazioni ha la precedenza (solo su quel dispositivo).
+
+## Pubblicazione
+
+```bash
+npm run build && cd dist && touch .nojekyll && git init -b gh-pages && git add -A && git commit -m Deploy && git push -f https://github.com/redmamba06/ripasso.git gh-pages
+```
 
 ## Struttura
 
@@ -28,4 +32,5 @@ Funzionamento: i dati vivono in IndexedDB (l'app funziona offline) e si sincroni
 - `src/lib/groq.ts` – client Groq (streaming, JSON, limite di token/minuto del piano gratuito)
 - `src/lib/quiz.ts` – estrazione domande dai PDF d'esame e correzione
 - `src/editor/` – editor stile Notion (TipTap): menu `/`, codice stile IDE, terminale Linux, riquadri, collegamenti alle slide
+- `src/lib/shortcuts.ts` – scorciatoie da tastiera personalizzabili (⌘/ per l'elenco)
 - `src/pages/` – Home, Corso (unità, file, esame, quiz, riassunto), Unità (slide + appunti), Quiz, Riassunto, Impostazioni

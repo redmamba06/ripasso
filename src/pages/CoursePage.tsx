@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Pencil,
@@ -35,6 +35,7 @@ import { toast } from '../components/Toast'
 import { extractQuiz } from '../lib/quiz'
 import { daysTo } from './Home'
 import { PlanTab } from '../components/PlanTab'
+import { registerShortcuts } from '../lib/shortcuts'
 
 const TABS = [
   { id: 'unita', label: 'Unità', icon: Layers },
@@ -51,6 +52,7 @@ export default function CoursePage() {
   const tab = sp.get('tab') ?? 'unita'
   const nav = useNavigate()
   const [edit, setEdit] = useState(false)
+  useEffect(() => registerShortcuts({ summary: () => nav(`/c/${courseId}/riassunto`) }), [courseId, nav])
   const data = useLiveQuery(async () => {
     const course = await db.courses.get(courseId!)
     const units = alive(await db.units.where('courseId').equals(courseId!).toArray()).sort((a, b) => a.order - b.order)

@@ -21,6 +21,9 @@ import { saveAsset } from '../editor/AssetImage'
 import { NO_AUTOLINK } from '../editor/SlideLink'
 import { toast } from '../components/Toast'
 import { useUI } from '../lib/ui'
+import { registerShortcuts } from '../lib/shortcuts'
+import { currentRef } from '../lib/viewer'
+import { NodeSelection } from '@tiptap/pm/state'
 
 type Mode = 'split' | 'slides' | 'notes'
 
@@ -279,6 +282,68 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
       bridge.current = null
     }
   }, [unit, aiFromSlide])
+
+  // scorciatoie da tastiera di questa pagina
+  const drawShortcut = useCallback(
+    (formula = false) => {
+      const ed = editorRef.current
+      if (!ed) return
+      if (mode === 'slides') setMode(narrow ? 'notes' : 'split')
+      const sel = ed.state.selection
+      if (!formula && sel instanceof NodeSelection && sel.node.type.name === 'drawing') {
+        window.dispatchEvent(new CustomEvent('ripasso:draw-activate', { detail: sel.from }))
+        return
+      }
+      const pos = insertPos(ed)
+      ed.chain()
+        .focus()
+        .setTextSelection(Math.min(pos, ed.state.doc.content.size))
+        .insertDrawing(formula ? { height: 220, bg: 'grid' } : { height: 360, bg: 'blank' })
+        .run()
+    },
+    [mode, narrow],
+  )
+  useEffect(() => {
+    if (!unit) return
+    const ed = () => editorRef.current
+    return registerShortcuts({
+      viewSplit: () => !narrow && setMode('split'),
+      viewSlides: () => setMode('slides'),
+      viewNotes: () => setMode('notes'),
+      autoLink: () => {
+        const v = !useSettings.getState().autoLink
+        setS({ autoLink: v })
+        toast(v ? 'Collegamento automatico attivo' : 'Collegamento automatico disattivato', 'info')
+      },
+      linkBlock: () => {
+        const e = ed()
+        const ref = currentRef()
+        if (!e || !ref) return
+        const { $from } = e.state.selection
+        if ($from.depth < 1) return
+        e.chain().setBlockSlide($from.before(1), ref).setMeta(NO_AUTOLINK, true).run()
+        toast('Blocco collegato alla slide ' + useViewer.getState().page)
+      },
+      examBox: () => ed()?.chain().focus().setCallout('exam').run(),
+      terminal: () =>
+        ed()
+          ?.chain()
+          .focus()
+          .insertContent({ type: 'codeBlock', attrs: { language: 'bash', variant: 'terminal' }, content: [{ type: 'text', text: '$ ' }] })
+          .run(),
+      codeBlock: () => ed()?.chain().focus().setCodeBlock({ language: 'python' }).run(),
+      markDone: () => {
+        void patch<Unit>('units', unit.id, { status: 'done' })
+        toast('Unità segnata come studiata')
+      },
+      draw: () => drawShortcut(false),
+      drawFormula: () => drawShortcut(true),
+      aiChat: () => setAi((a) => !a),
+      aiNotes: () => void aiFromSlide('notes'),
+      aiExplain: () => void aiFromSlide('explain'),
+      summary: () => nav(`/c/${unit.courseId}/riassunto`),
+    })
+  }, [unit, narrow, setS, drawShortcut, aiFromSlide, nav])
 
   // divisore trascinabile
   const split = useRef<HTMLDivElement>(null)

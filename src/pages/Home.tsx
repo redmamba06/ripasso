@@ -8,6 +8,7 @@ import { TaskRow } from '../components/PlanTab'
 import { db, alive, type Course } from '../lib/db'
 import { CourseForm } from '../components/CourseForm'
 import { useSettings } from '../lib/settings'
+import { useSync } from '../lib/sync'
 
 export function daysTo(date?: string) {
   if (!date) return null
@@ -26,6 +27,7 @@ export default function Home() {
   const nav = useNavigate()
   const [newCourse, setNewCourse] = useState(false)
   const groqKey = useSettings((s) => s.groqKey)
+  const user = useSync((s) => s.user)
   const data = useLiveQuery(async () => {
     const courses = alive(await db.courses.orderBy('order').toArray())
     const units = alive(await db.units.toArray())
@@ -71,9 +73,9 @@ export default function Home() {
         <p className="opacity-60 mt-1">Riprendi gli appunti, ripassa e preparati agli esami.</p>
       </motion.header>
 
-      {!groqKey && (
+      {!groqKey && !user && (
         <button className="banner mb-6" onClick={() => nav('/settings')}>
-          <KeyRound size={18} /> Aggiungi la chiave Groq nelle impostazioni per usare l’AI <ArrowRight size={16} className="ml-auto" />
+          <KeyRound size={18} /> Accedi al tuo account per sincronizzare i dispositivi e usare l’AI <ArrowRight size={16} className="ml-auto" />
         </button>
       )}
 

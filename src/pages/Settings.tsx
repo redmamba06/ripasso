@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import { KeyRound, Cloud, Palette, Sparkles, Smartphone, Loader2, CheckCircle2, LogOut, RefreshCw, Eye, EyeOff, Download, Upload, Link2 } from 'lucide-react'
 import { useSettings, type Theme } from '../lib/settings'
 import { useSync, signIn, signUp, signOut, syncNow, supa } from '../lib/sync'
-import { chat } from '../lib/groq'
+import { chat, aiStatus } from '../lib/groq'
+import { ShortcutsEditor } from '../components/ShortcutsEditor'
 import { db, SYNC_TABLES } from '../lib/db'
 import { toast } from '../components/Toast'
 import { download } from '../lib/export'
@@ -22,7 +23,7 @@ export default function SettingsPage() {
     setTesting(true)
     try {
       const r = await chat([{ role: 'user', content: 'Rispondi solo: ok' }], { maxTokens: 50 })
-      toast(r ? 'Chiave Groq funzionante ✓' : 'Risposta vuota', r ? 'ok' : 'error')
+      toast(r ? 'AI funzionante ✓' : 'Risposta vuota', r ? 'ok' : 'error')
     } catch (e) {
       toast((e as Error).message, 'error')
     } finally {
@@ -63,6 +64,19 @@ export default function SettingsPage() {
     }
   }
 
+  const [ai, setAi] = useState<Awaited<ReturnType<typeof aiStatus>> | null>(null)
+  useEffect(() => {
+    let ok = true
+    setAi(null)
+    void aiStatus().then((r) => ok && setAi(r))
+    return () => {
+      ok = false
+    }
+  }, [sync.user, s.groqKey])
+  useEffect(() => {
+    if (location.hash.includes('scorciatoie')) setTimeout(() => document.getElementById('scorciatoie')?.scrollIntoView({ behavior: 'smooth' }), 300)
+  }, [])
+
   const card = (i: number) => ({ initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 }, transition: { delay: i * 0.05 } })
 
   return (
@@ -95,19 +109,32 @@ export default function SettingsPage() {
         <h2 className="set-title">
           <Sparkles size={17} /> Intelligenza artificiale (Groq)
         </h2>
-        <label className="label">Chiave API Groq</label>
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <input className="field pr-10 font-mono text-[13px]" type={showKey ? 'text' : 'password'} value={s.groqKey} placeholder="gsk_…" onChange={(e) => s.set({ groqKey: e.target.value.trim() })} />
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-0 text-[13.5px]">
+            {ai === 'key' && <span>Stai usando una chiave Groq personale su questo dispositivo.</span>}
+            {ai === 'account' && (
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 size={16} className="text-emerald-500" /> AI attiva tramite il tuo account: la chiave è custodita sul server e non serve incollarla.
+              </span>
+            )}
+            {ai === 'forbidden' && <span className="text-rose-500">Questo account non è abilitato all’AI.</span>}
+            {ai === 'none' && <span className="opacity-70">Accedi al tuo account (qui sotto) per usare l’AI su qualsiasi dispositivo.</span>}
+            {ai === null && <span className="opacity-50">Controllo…</span>}
+          </div>
+          <button className="btn" onClick={testKey} disabled={testing || ai === 'none' || ai === 'forbidden'}>
+            {testing ? <Loader2 size={15} className="spin" /> : <KeyRound size={15} />} Prova
+          </button>
+        </div>
+        <details className="text-[13px] mt-3">
+          <summary className="cursor-pointer opacity-70">Usa una chiave Groq personale (facoltativo)</summary>
+          <div className="relative mt-2">
+            <input className="field pr-10 font-mono text-[13px]" type={showKey ? 'text' : 'password'} value={s.groqKey} placeholder="gsk_… (lascia vuoto per usare l’account)" onChange={(e) => s.set({ groqKey: e.target.value.trim() })} />
             <button className="absolute right-2 top-1/2 -translate-y-1/2 opacity-50" onClick={() => setShowKey(!showKey)}>
               {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-          <button className="btn" onClick={testKey} disabled={testing || !s.groqKey}>
-            {testing ? <Loader2 size={15} className="spin" /> : <KeyRound size={15} />} Prova
-          </button>
-        </div>
-        <p className="text-[12px] opacity-55 mt-1.5">Salvata sul dispositivo e, se hai fatto l’accesso, nel tuo account privato (così vale su tutti i dispositivi).</p>
+          <p className="text-[12px] opacity-55 mt-1.5">Resta solo su questo dispositivo.</p>
+        </details>
         <div className="grid sm:grid-cols-2 gap-3 mt-4">
           <label>
             <span className="label">Modello per testo</span>
@@ -157,8 +184,8 @@ export default function SettingsPage() {
         ) : (
           <div className="flex flex-col gap-3">
             <p className="text-[13.5px] opacity-70">Accedi con lo stesso account su PC, iPad e iPhone per avere appunti, PDF e quiz ovunque. Senza accesso i dati restano solo su questo dispositivo.</p>
-            <details className="text-[13px]" open={!s.supabaseUrl}>
-              <summary className="cursor-pointer font-medium">Configurazione server (Supabase)</summary>
+            <details className="text-[13px]">
+              <summary className="cursor-pointer opacity-60">Server (avanzato)</summary>
               <div className="grid gap-2 mt-2">
                 <input className="field font-mono text-[12.5px]" placeholder="https://xxxx.supabase.co" value={s.supabaseUrl} onChange={(e) => s.set({ supabaseUrl: e.target.value.trim() })} />
                 <input className="field font-mono text-[12.5px]" placeholder="chiave anon pubblica" value={s.supabaseAnon} onChange={(e) => s.set({ supabaseAnon: e.target.value.trim() })} />
@@ -188,7 +215,11 @@ export default function SettingsPage() {
         </div>
       </motion.section>
 
-      <motion.section {...card(3)} className="card mb-4">
+      <motion.section {...card(3)} className="card mb-4" id="scorciatoie">
+        <ShortcutsEditor />
+      </motion.section>
+
+      <motion.section {...card(4)} className="card mb-4">
         <h2 className="set-title">
           <Smartphone size={17} /> Installa l’app
         </h2>

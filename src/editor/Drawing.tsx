@@ -7,6 +7,7 @@ import { chat } from '../lib/groq'
 import { settings } from '../lib/settings'
 import { toast } from '../components/Toast'
 import { mdToHtml } from '../lib/markdown'
+import { registerShortcuts } from '../lib/shortcuts'
 
 /** Tratto vettoriale: coordinate in uno spazio logico largo 1000 unità. */
 export interface Stroke {
@@ -156,6 +157,16 @@ function DrawingView({ node, updateAttributes, editor, selected, deleteNode, get
   // elenco sempre aggiornato (i tratti rapidi arrivano prima del re-render)
   const latest = useRef(strokes)
   latest.current = strokes
+  // attivazione da scorciatoia quando il blocco è selezionato
+  useEffect(() => {
+    const on = (e: Event) => {
+      const pos = typeof getPos === 'function' ? getPos() : undefined
+      if ((e as CustomEvent).detail === pos) setEditing(true)
+    }
+    window.addEventListener('ripasso:draw-activate', on)
+    return () => window.removeEventListener('ripasso:draw-activate', on)
+  }, [getPos])
+
   const commit = useCallback(
     (s: Stroke[]) => {
       latest.current = s
@@ -190,6 +201,25 @@ function DrawingView({ node, updateAttributes, editor, selected, deleteNode, get
       setBusy(null)
     }
   }
+
+  // scorciatoie attive solo mentre si disegna in questo blocco
+  const convertRef = useRef(convert)
+  convertRef.current = convert
+  useEffect(() => {
+    if (!editing) return
+    return registerShortcuts({
+      draw: () => setTool('pen'),
+      toolPen: () => setTool('pen'),
+      toolHl: () => setTool('hl'),
+      toolEraser: () => setTool('eraser'),
+      drawFull: () => setFull((f) => !f),
+      drawDone: () => {
+        setEditing(false)
+        setFull(false)
+      },
+      toLatex: () => void convertRef.current('latex'),
+    })
+  }, [editing])
 
   const toolbar = (
     <div className="draw-tools" contentEditable={false} onPointerDown={(e) => e.stopPropagation()}>

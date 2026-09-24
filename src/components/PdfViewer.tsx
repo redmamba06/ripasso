@@ -4,6 +4,7 @@ import { TextLayer } from 'pdfjs-dist'
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Crop, Maximize2, Loader2, X, PenLine } from 'lucide-react'
 import { loadPdf, renderPageToCanvas } from '../lib/pdf'
 import { useViewer } from '../lib/viewer'
+import { registerShortcuts } from '../lib/shortcuts'
 
 interface Props {
   fileId: string
@@ -85,6 +86,12 @@ export function PdfViewer({ fileId, onSnip, onTranscribe, transcribing }: Props)
   const onScroll = () => {
     const el = scroller.current
     if (!el || !doc) return
+    // in fondo al documento l'ultima pagina non può salire in alto: la consideriamo aperta
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 4 && doc.numPages > 0) {
+      if (useViewer.getState().page !== doc.numPages && Date.now() - lastGo.current > 700) setPage(doc.numPages)
+      return
+    }
+    if (Date.now() - lastGo.current < 700) return
     const probe = el.scrollTop + el.clientHeight * 0.35
     const kids = pagesRef.current?.children ?? []
     for (let i = 0; i < kids.length; i++) {
@@ -100,8 +107,12 @@ export function PdfViewer({ fileId, onSnip, onTranscribe, transcribing }: Props)
     }
   }
 
+  const lastGo = useRef(0)
   const go = (p: number) => {
-    const n = Math.min(Math.max(1, p), numPages || 1)
+    const n = Math.min(Math.max(1, p), useViewer.getState().numPages || 1)
+    lastGo.current = Date.now()
+    setPage(n)
+    localStorage.setItem('ripasso:lastpage:' + fileId, String(n))
     scrollToPage(n)
   }
 
@@ -116,6 +127,21 @@ export function PdfViewer({ fileId, onSnip, onTranscribe, transcribing }: Props)
     window.addEventListener('keydown', k)
     return () => window.removeEventListener('keydown', k)
   })
+
+  const goRef = useRef(go)
+  goRef.current = go
+  useEffect(
+    () =>
+      registerShortcuts({
+        nextSlide: () => goRef.current(useViewer.getState().page + 1),
+        prevSlide: () => goRef.current(useViewer.getState().page - 1),
+        zoomIn: () => setZoom((z) => Math.min(3, +(z + 0.15).toFixed(2))),
+        zoomOut: () => setZoom((z) => Math.max(0.4, +(z - 0.15).toFixed(2))),
+        snip: () => useViewer.getState().setSnipping(!useViewer.getState().snipping),
+        handwriting: () => onTranscribe?.([useViewer.getState().page]),
+      }),
+    [onTranscribe],
+  )
 
   // ---------- ritaglio ----------
   const [sel, setSel] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null)

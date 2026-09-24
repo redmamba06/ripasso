@@ -1,4 +1,4 @@
-import { HashRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { HashRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Menu } from 'lucide-react'
@@ -6,6 +6,9 @@ import { Sidebar } from './components/Sidebar'
 import { Toaster } from './components/Toast'
 import { SearchPalette } from './components/SearchPalette'
 import { useUI } from './lib/ui'
+import { installShortcuts, registerShortcuts } from './lib/shortcuts'
+import { ShortcutsHelp } from './components/ShortcutsHelp'
+import { CourseForm } from './components/CourseForm'
 import { useSettings } from './lib/settings'
 import { startSync } from './lib/sync'
 import Home from './pages/Home'
@@ -40,20 +43,19 @@ function Shell() {
     if (window.innerWidth < 900) setSidebar(false)
   }, [loc.pathname, setSidebar])
 
+  const nav = useNavigate()
   useEffect(() => {
-    const k = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault()
-        useUI.getState().setSearch(true)
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
-        e.preventDefault()
-        useUI.getState().setSidebar(!useUI.getState().sidebar)
-      }
-    }
-    window.addEventListener('keydown', k)
-    return () => window.removeEventListener('keydown', k)
-  }, [])
+    installShortcuts()
+    const ui = useUI.getState
+    return registerShortcuts({
+      search: () => ui().setSearch(true),
+      help: () => ui().setHelp(!ui().help),
+      sidebar: () => ui().setSidebar(!ui().sidebar),
+      home: () => nav('/'),
+      settings: () => nav('/settings'),
+      newCourse: () => ui().setNewCourse(true),
+    })
+  }, [nav])
 
   return (
     <div className="app-shell">
@@ -95,9 +97,16 @@ function Shell() {
         </Routes>
       </main>
       <SearchPalette />
+      <ShortcutsHelp />
+      <GlobalCourseForm />
       <Toaster />
     </div>
   )
+}
+
+function GlobalCourseForm() {
+  const open = useUI((s) => s.newCourse)
+  return <CourseForm open={open} onClose={() => useUI.getState().setNewCourse(false)} />
 }
 
 export default function App() {

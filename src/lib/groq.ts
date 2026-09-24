@@ -1,4 +1,5 @@
 import { settings } from './settings'
+import { supa } from './sync'
 
 const URL = 'https://api.groq.com/openai/v1/chat/completions'
 
@@ -69,16 +70,26 @@ const settle = (slot: { n: number } | null, real?: number) => {
   if (slot && real && real > 0) slot.n = real
 }
 
-async function doFetch(msgs: GMsg[], o: CallOpts, stream: boolean): Promise<Response> {
+/** Chiave personale → Groq diretto; altrimenti passa dal server con l'account (la chiave resta segreta). */
+async function endpoint(): Promise<{ url: string; headers: Record<string, string> }> {
   const key = settings().groqKey
-  if (!key) throw new GroqError('Manca la chiave Groq: aggiungila in Impostazioni.')
+  if (key) return { url: URL, headers: { Authorization: `Bearer ${key}` } }
+  const c = supa()
+  const token = c ? (await c.auth.getSession()).data.session?.access_token : null
+  if (!token) throw new GroqError('Per usare l’AI accedi al tuo account in Impostazioni.')
+  const { supabaseUrl, supabaseAnon } = settings()
+  return { url: `${supabaseUrl}/functions/v1/groq`, headers: { Authorization: `Bearer ${token}`, apikey: supabaseAnon } }
+}
+
+async function doFetch(msgs: GMsg[], o: CallOpts, stream: boolean): Promise<Response> {
+  const ep = await endpoint()
   const maxTokens = o.maxTokens ?? 2000
   for (let attempt = 0; attempt < 4; attempt++) {
     const slot = await waitBudget(estimate(msgs, Math.min(maxTokens, 1500)), o.onWait)
     lastSlot = slot
-    const res = await fetch(URL, {
+    const res = await fetch(ep.url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      headers: { ...ep.headers, 'Content-Type': 'application/json' },
       body: body(msgs, o, stream),
       signal: o.signal,
     })
@@ -96,13 +107,25 @@ async function doFetch(msgs: GMsg[], o: CallOpts, stream: boolean): Promise<Resp
       } catch {
         /* */
       }
-      if (res.status === 401) msg = 'Chiave Groq non valida: controllala in Impostazioni.'
+      if (res.status === 401) msg = settings().groqKey ? 'Chiave Groq non valida: controllala in Impostazioni.' : 'Sessione scaduta: rifai l’accesso in Impostazioni.'
       if (res.status === 413) msg = 'Richiesta troppo lunga per il piano gratuito Groq: prova con meno testo.'
       throw new GroqError(msg)
     }
     return res
   }
   throw new GroqError('Groq è sovraccarico, riprova tra un minuto.')
+}
+
+/** L'AI è utilizzabile? (chiave personale oppure account abilitato) */
+export async function aiStatus(): Promise<'key' | 'account' | 'forbidden' | 'none'> {
+  if (settings().groqKey) return 'key'
+  try {
+    const ep = await endpoint()
+    const r = await fetch(ep.url, { headers: ep.headers })
+    return r.ok ? 'account' : r.status === 403 ? 'forbidden' : 'none'
+  } catch {
+    return 'none'
+  }
 }
 
 export async function chat(msgs: GMsg[], o: CallOpts = {}): Promise<string> {
