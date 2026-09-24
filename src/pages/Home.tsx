@@ -1,3 +1,4 @@
+import { CourseIcon } from '../components/CourseIcon'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate } from 'react-router-dom'
 import { useState } from 'react'
@@ -98,7 +99,7 @@ export default function Home() {
                 <div className="text-[34px] font-bold leading-none">{d === 0 ? 'Oggi' : d}</div>
                 <div className="text-[12px] opacity-70 mb-3">{d === 0 ? '' : d === 1 ? 'giorno' : 'giorni'}</div>
                 <div className="font-medium truncate">
-                  {c.emoji} {c.name}
+                  <span className="inline-flex w-5 h-5 align-[-3px] mr-1"><CourseIcon course={c} /></span>{c.name}
                 </div>
                 <div className="text-[12px] opacity-60">
                   {new Date(c.exam!.date + 'T00:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
@@ -120,7 +121,7 @@ export default function Home() {
               <div key={c.id} className="card" style={{ ['--c' as string]: c.color }}>
                 <button className="flex items-center gap-2 mb-2 w-full text-left" onClick={() => nav(`/c/${c.id}?tab=piano`)}>
                   <span className="course-dot" style={{ background: c.color }}>
-                    {c.emoji}
+                    <CourseIcon course={c} />
                   </span>
                   <b className="flex-1 truncate">{c.name}</b>
                   {day!.review && <span className="pill soft">ripasso finale</span>}
@@ -145,7 +146,7 @@ export default function Home() {
             {recent.map(({ n, u, c }) => (
               <button key={n.id} className="card card-hover text-left flex gap-3 items-center" onClick={() => nav(`/u/${u!.id}`)}>
                 <span className="course-badge" style={{ background: c!.color }}>
-                  {c!.emoji}
+                  <CourseIcon course={c!} />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block font-medium truncate">{u!.title}</span>
@@ -177,7 +178,7 @@ export default function Home() {
                 onClick={() => nav(`/c/${c.id}`)}
               >
                 <div className="flex items-start justify-between">
-                  <span className="course-badge big">{c.emoji}</span>
+                  <span className="course-badge big"><CourseIcon course={c} /></span>
                   {daysTo(c.exam?.date) != null && daysTo(c.exam?.date)! >= 0 && <span className="pill">esame tra {daysTo(c.exam?.date)} gg</span>}
                 </div>
                 <div className="mt-4 font-semibold text-[17px] leading-tight">{c.name}</div>

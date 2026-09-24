@@ -119,7 +119,7 @@ export function PdfViewer({ fileId, onSnip, onTranscribe, transcribing }: Props)
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement
-      if (t.closest('.ProseMirror, input, textarea, select, [contenteditable]')) return
+      if (t?.closest?.('.ProseMirror, input, textarea, select, [contenteditable]')) return
       if (e.key === 'ArrowRight' || e.key === 'PageDown') go(useViewer.getState().page + 1)
       if (e.key === 'ArrowLeft' || e.key === 'PageUp') go(useViewer.getState().page - 1)
       if (e.key === 'Escape') useViewer.getState().setSnipping(false)

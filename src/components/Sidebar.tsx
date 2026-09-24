@@ -1,3 +1,4 @@
+import { CourseIcon } from './CourseIcon'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
@@ -87,7 +88,7 @@ export function Sidebar() {
                 </button>
                 <button className="flex-1 flex items-center gap-2 min-w-0 text-left" onClick={() => nav(`/c/${c.id}`)}>
                   <span className="course-dot" style={{ background: c.color }}>
-                    {c.emoji}
+                    <CourseIcon course={c} />
                   </span>
                   <span className="truncate">{c.name}</span>
                 </button>

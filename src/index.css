@@ -2940,3 +2940,30 @@ kbd {
 .dark .draw-surface {
   background-color: #fffdf8;
 }
+.course-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+}
+.course-dot,
+.course-badge {
+  overflow: hidden;
+}
+.course-dot:has(.course-logo),
+.course-badge:has(.course-logo) {
+  background: transparent !important;
+  box-shadow: 0 0 0 1px var(--line);
+}
+.summary-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  overflow: hidden;
+  font-size: 44px;
+  line-height: 64px;
+}
+.summary-logo:has(.course-logo) {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}

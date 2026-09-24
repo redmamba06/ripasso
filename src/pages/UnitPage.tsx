@@ -1,3 +1,4 @@
+import { CourseIcon } from '../components/CourseIcon'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -450,7 +451,7 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
         </button>
         <div className="min-w-0 flex-1">
           <div className="text-[11.5px] opacity-55 truncate">
-            {course.emoji} {course.name}
+            <span className="inline-flex w-3.5 h-3.5 align-[-2px] mr-1"><CourseIcon course={course} /></span>{course.name}
           </div>
           <input
             key={unit.id + unit.title}

@@ -1,3 +1,4 @@
+import { CourseIcon } from '../components/CourseIcon'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useParams } from 'react-router-dom'
 import { EditorContent, useEditor, type JSONContent } from '@tiptap/react'
@@ -96,7 +97,7 @@ export default function Summary() {
         </nav>
         <article className="summary-doc">
           <header className="summary-cover" style={{ ['--c' as string]: course.color }}>
-            <div className="text-[44px]">{course.emoji}</div>
+            <div className="summary-logo"><CourseIcon course={course} /></div>
             <h1>{course.name}</h1>
             <p>
               Riassunto completo · {filled.length} unità{course.professor ? ` · ${course.professor}` : ''}

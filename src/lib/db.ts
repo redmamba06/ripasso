@@ -24,6 +24,8 @@ export interface Course extends Base {
   emoji: string
   color: string
   order: number
+  /** logo personalizzato (id immagine negli asset), al posto dell'emoji */
+  logo?: string | null
   professor?: string
   exam?: ExamInfo
   plan?: { studyDays: number[]; reviewDays: number }

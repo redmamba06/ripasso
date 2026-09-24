@@ -1,3 +1,4 @@
+import { CourseIcon } from '../components/CourseIcon'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
@@ -80,7 +81,7 @@ export default function CoursePage() {
   return (
     <div className="page">
       <motion.header initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="course-hero" style={{ ['--c' as string]: course.color }}>
-        <span className="course-badge xl">{course.emoji}</span>
+        <span className="course-badge xl"><CourseIcon course={course} /></span>
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight truncate">{course.name}</h1>
           <div className="text-[13.5px] opacity-65 flex flex-wrap gap-x-3">
