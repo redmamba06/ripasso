@@ -359,12 +359,12 @@ export function InkLayer({
 
   const convert = async (mode: 'latex' | 'text') => {
     const list = latest.current.filter((s) => session.current.has(s.id) && layout.blocks.has(s.b) && s.t === 'pen')
-    if (!list.length) return toast('Scrivi prima qualcosa a mano', 'info')
+    if (!list.length) return toast('Write something by hand first', 'info')
     const img = renderPng(list)
     const prompt =
       mode === 'latex'
-        ? 'Nell’immagine c’è una formula o un calcolo scritto a mano. Trascrivilo in LaTeX. Rispondi SOLO con il codice LaTeX, senza $ e senza spiegazioni; per più righe usa \\\\.'
-        : 'Trascrivi fedelmente il testo scritto a mano nell’immagine, in italiano, in Markdown (formule tra $...$). Rispondi SOLO con la trascrizione.'
+        ? 'The image contains a handwritten formula or calculation. Transcribe it into LaTeX. Reply ONLY with the LaTeX code, without $ and without explanations; for several lines use \\\\.'
+        : 'Faithfully transcribe the handwritten text in the image, keeping the language it is written in, in Markdown (formulas between $...$). Reply ONLY with the transcription.'
     const out = (await chat([{ role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: img } }] }], { model: settings().visionModel, maxTokens: 1200, temperature: 0 }))
       .replace(/^```(latex|tex|markdown)?/i, '')
       .replace(/```$/, '')
@@ -379,7 +379,7 @@ export function InkLayer({
     const ids = new Set(list.map((s) => s.id))
     commit(latest.current.filter((s) => !ids.has(s.id)))
     session.current = new Set()
-    toast(mode === 'latex' ? 'Scrittura a mano convertita in formula' : 'Scrittura a mano convertita in testo')
+    toast(mode === 'latex' ? 'Handwriting converted to a formula' : 'Handwriting converted to text')
   }
 
   const finish = () => {

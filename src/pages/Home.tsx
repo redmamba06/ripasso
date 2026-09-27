@@ -21,7 +21,7 @@ export function daysTo(date?: string) {
 
 const greet = () => {
   const h = new Date().getHours()
-  return h < 6 ? 'Buonanotte' : h < 13 ? 'Buongiorno' : h < 18 ? 'Buon pomeriggio' : 'Buonasera'
+  return h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
 }
 
 export default function Home() {
@@ -69,21 +69,21 @@ export default function Home() {
   return (
     <div className="page">
       <motion.header initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-        <div className="text-[13px] font-medium text-accent mb-1">{new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+        <div className="text-[13px] font-medium text-accent mb-1">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{greet()} 👋</h1>
-        <p className="opacity-60 mt-1">Riprendi gli appunti, ripassa e preparati agli esami.</p>
+        <p className="opacity-60 mt-1">Pick up your notes, revise and get ready for your exams.</p>
       </motion.header>
 
       {!groqKey && !user && (
         <button className="banner mb-6" onClick={() => nav('/settings')}>
-          <KeyRound size={18} /> Accedi al tuo account per sincronizzare i dispositivi e usare l’AI <ArrowRight size={16} className="ml-auto" />
+          <KeyRound size={18} /> Sign in to sync your devices and use the AI <ArrowRight size={16} className="ml-auto" />
         </button>
       )}
 
       {exams.length > 0 && (
         <section className="mb-8">
           <h2 className="section-title">
-            <CalendarClock size={16} /> Prossimi esami
+            <CalendarClock size={16} /> Upcoming exams
           </h2>
           <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
             {exams.map(({ c, d }, i) => (
@@ -94,15 +94,15 @@ export default function Home() {
                 transition={{ delay: i * 0.05 }}
                 className="exam-card snap-start"
                 style={{ ['--c' as string]: c.color }}
-                onClick={() => nav(`/c/${c.id}?tab=esame`)}
+                onClick={() => nav(`/c/${c.id}?tab=exam`)}
               >
-                <div className="text-[34px] font-bold leading-none">{d === 0 ? 'Oggi' : d}</div>
-                <div className="text-[12px] opacity-70 mb-3">{d === 0 ? '' : d === 1 ? 'giorno' : 'giorni'}</div>
+                <div className="text-[34px] font-bold leading-none">{d === 0 ? 'Today' : d}</div>
+                <div className="text-[12px] opacity-70 mb-3">{d === 0 ? '' : d === 1 ? 'day' : 'days'}</div>
                 <div className="font-medium truncate">
                   <span className="inline-flex w-5 h-5 align-[-3px] mr-1"><CourseIcon course={c} /></span>{c.name}
                 </div>
                 <div className="text-[12px] opacity-60">
-                  {new Date(c.exam!.date + 'T00:00').toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })}
+                  {new Date(c.exam!.date + 'T00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                   {c.exam?.type ? ` · ${c.exam.type}` : ''}
                 </div>
               </motion.button>
@@ -114,17 +114,17 @@ export default function Home() {
       {todayTasks.length > 0 && (
         <section className="mb-8">
           <h2 className="section-title">
-            <CalendarCheck size={16} /> Oggi da studiare
+            <CalendarCheck size={16} /> To study today
           </h2>
           <div className="grid md:grid-cols-2 gap-3">
             {todayTasks.map(({ c, day }) => (
               <div key={c.id} className="card" style={{ ['--c' as string]: c.color }}>
-                <button className="flex items-center gap-2 mb-2 w-full text-left" onClick={() => nav(`/c/${c.id}?tab=piano`)}>
+                <button className="flex items-center gap-2 mb-2 w-full text-left" onClick={() => nav(`/c/${c.id}?tab=plan`)}>
                   <span className="course-dot" style={{ background: c.color }}>
                     <CourseIcon course={c} />
                   </span>
                   <b className="flex-1 truncate">{c.name}</b>
-                  {day!.review && <span className="pill soft">ripasso finale</span>}
+                  {day!.review && <span className="pill soft">final revision</span>}
                 </button>
                 <div className="flex flex-col gap-1">
                   {day!.tasks.map((t, k) => (
@@ -140,7 +140,7 @@ export default function Home() {
       {recent.length > 0 && (
         <section className="mb-8">
           <h2 className="section-title">
-            <Sparkles size={16} /> Continua da dove eri
+            <Sparkles size={16} /> Continue where you left off
           </h2>
           <div className="grid sm:grid-cols-2 gap-3">
             {recent.map(({ n, u, c }) => (
@@ -160,7 +160,7 @@ export default function Home() {
       )}
 
       <section>
-        <h2 className="section-title">I tuoi corsi</h2>
+        <h2 className="section-title">Your courses</h2>
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {courses.map((c, i) => {
             const p = progress(c)
@@ -179,13 +179,13 @@ export default function Home() {
               >
                 <div className="flex items-start justify-between">
                   <span className="course-badge big"><CourseIcon course={c} /></span>
-                  {daysTo(c.exam?.date) != null && daysTo(c.exam?.date)! >= 0 && <span className="pill">esame tra {daysTo(c.exam?.date)} gg</span>}
+                  {daysTo(c.exam?.date) != null && daysTo(c.exam?.date)! >= 0 && <span className="pill">exam in {daysTo(c.exam?.date)} d</span>}
                 </div>
                 <div className="mt-4 font-semibold text-[17px] leading-tight">{c.name}</div>
                 {c.professor && <div className="text-[12.5px] opacity-55">{c.professor}</div>}
                 <div className="mt-auto pt-4 flex items-center justify-between text-[12px] opacity-70">
-                  <span>{p.total} unità</span>
-                  <span>{pct}% con appunti</span>
+                  <span>{p.total} unit{p.total === 1 ? '' : 's'}</span>
+                  <span>{pct}% with notes</span>
                 </div>
                 <div className="progress mt-1.5">
                   <motion.span initial={{ width: 0 }} animate={{ width: pct + '%' }} transition={{ duration: 0.8, delay: 0.2 }} />
@@ -195,7 +195,7 @@ export default function Home() {
           })}
           <motion.button whileHover={{ y: -3 }} whileTap={{ scale: 0.98 }} className="course-card new" onClick={() => setNewCourse(true)}>
             <Plus size={26} />
-            <span className="font-medium mt-2">Nuovo corso</span>
+            <span className="font-medium mt-2">New course</span>
           </motion.button>
         </div>
       </section>

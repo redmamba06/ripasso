@@ -50,7 +50,7 @@ function View({ node, updateAttributes, selected, editor }: NodeViewProps) {
   return (
     <NodeViewWrapper className={`img-block ${selected ? 'is-selected' : ''}`} data-slide={node.attrs.slide ?? undefined} data-drag-handle>
       <figure style={{ width: node.attrs.width || '100%' }}>
-        {url ? <img src={url} alt={node.attrs.alt ?? ''} draggable={false} /> : <div className="img-loading">Caricamento immagine…</div>}
+        {url ? <img src={url} alt={node.attrs.alt ?? ''} draggable={false} /> : <div className="img-loading">Loading image…</div>}
       </figure>
       {editor.isEditable && (
         <div className="img-tools" contentEditable={false}>

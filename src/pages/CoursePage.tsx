@@ -25,6 +25,7 @@ import {
   ScrollText,
   CalendarDays,
   RefreshCw,
+  Clock,
 } from 'lucide-react'
 import { db, alive, put, patch, remove, uid, deleteCourseDeep, deleteUnitDeep, type Course, type Unit, type FileRec, type FileKind, type Quiz } from '../lib/db'
 import { addFiles, newUnit, fmtSize, downloadFile, isPdf } from '../lib/files'
@@ -37,25 +38,27 @@ import { toast } from '../components/Toast'
 import { extractQuiz } from '../lib/quiz'
 import { daysTo } from './Home'
 import { PlanTab } from '../components/PlanTab'
+import { ScheduleTab } from '../components/ScheduleTab'
 import { replaceFile } from '../lib/versions'
 import { registerShortcuts } from '../lib/shortcuts'
 
 const TABS = [
-  { id: 'unita', label: 'Unità', icon: Layers },
-  { id: 'file', label: 'File', icon: Files },
-  { id: 'esame', label: 'Esame', icon: GraduationCap },
-  { id: 'piano', label: 'Piano', icon: CalendarDays },
+  { id: 'units', label: 'Units', icon: Layers },
+  { id: 'files', label: 'Files', icon: Files },
+  { id: 'exam', label: 'Exam', icon: GraduationCap },
+  { id: 'schedule', label: 'Schedule', icon: Clock },
+  { id: 'plan', label: 'Study plan', icon: CalendarDays },
   { id: 'quiz', label: 'Quiz', icon: ListChecks },
-  { id: 'riassunto', label: 'Riassunto', icon: ScrollText },
+  { id: 'summary', label: 'Summary', icon: ScrollText },
 ] as const
 
 export default function CoursePage() {
   const { courseId } = useParams()
   const [sp, setSp] = useSearchParams()
-  const tab = sp.get('tab') ?? 'unita'
+  const tab = sp.get('tab') ?? 'units'
   const nav = useNavigate()
   const [edit, setEdit] = useState(false)
-  useEffect(() => registerShortcuts({ summary: () => nav(`/c/${courseId}/riassunto`) }), [courseId, nav])
+  useEffect(() => registerShortcuts({ summary: () => nav(`/c/${courseId}/summary`) }), [courseId, nav])
   const data = useLiveQuery(async () => {
     const course = await db.courses.get(courseId!)
     const units = alive(await db.units.where('courseId').equals(courseId!).toArray()).sort((a, b) => a.order - b.order)
@@ -69,12 +72,12 @@ export default function CoursePage() {
   if (!course || course.deleted)
     return (
       <div className="page">
-        <p className="opacity-60">Corso non trovato.</p>
+        <p className="opacity-60">Course not found.</p>
       </div>
     )
 
   const del = async () => {
-    if (!confirm(`Eliminare il corso "${course.name}" con tutte le unità, gli appunti e i quiz?`)) return
+    if (!confirm(`Delete the course "${course.name}" with all its units, notes and quizzes?`)) return
     await deleteCourseDeep(course.id)
     nav('/')
   }
@@ -88,15 +91,15 @@ export default function CoursePage() {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight truncate">{course.name}</h1>
           <div className="text-[13.5px] opacity-65 flex flex-wrap gap-x-3">
             {course.professor && <span>{course.professor}</span>}
-            <span>{units.length} unità</span>
-            <span>{files.length} file</span>
-            {d != null && d >= 0 && <span className="text-accent font-medium">Esame tra {d} giorni</span>}
+            <span>{units.length} unit{units.length === 1 ? '' : 's'}</span>
+            <span>{files.length} file{files.length === 1 ? '' : 's'}</span>
+            {d != null && d >= 0 && <span className="text-accent font-medium">Exam in {d} day{d === 1 ? '' : 's'}</span>}
           </div>
         </div>
-        <button className="icon-btn" onClick={() => setEdit(true)} title="Modifica">
+        <button className="icon-btn" onClick={() => setEdit(true)} title="Edit">
           <Pencil size={17} />
         </button>
-        <button className="icon-btn danger" onClick={del} title="Elimina corso">
+        <button className="icon-btn danger" onClick={del} title="Delete course">
           <Trash2 size={17} />
         </button>
       </motion.header>
@@ -112,12 +115,13 @@ export default function CoursePage() {
 
       <AnimatePresence mode="wait">
         <motion.div key={tab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.15 }}>
-          {tab === 'unita' && <UnitsTab course={course} units={units} files={files} notes={data.notes} />}
-          {tab === 'file' && <FilesTab course={course} units={units} files={files} />}
-          {tab === 'esame' && <ExamTab course={course} />}
-          {tab === 'piano' && <PlanTab course={course} units={units} quizzes={quizzes} />}
+          {tab === 'units' && <UnitsTab course={course} units={units} files={files} notes={data.notes} />}
+          {tab === 'files' && <FilesTab course={course} units={units} files={files} />}
+          {tab === 'exam' && <ExamTab course={course} />}
+          {tab === 'schedule' && <ScheduleTab course={course} />}
+          {tab === 'plan' && <PlanTab course={course} units={units} quizzes={quizzes} />}
           {tab === 'quiz' && <QuizTab course={course} files={files} quizzes={quizzes} />}
-          {tab === 'riassunto' && <SummaryTab course={course} units={units} notes={notes} />}
+          {tab === 'summary' && <SummaryTab course={course} units={units} notes={notes} />}
         </motion.div>
       </AnimatePresence>
       <CourseForm open={edit} onClose={() => setEdit(false)} course={course} />
@@ -131,7 +135,7 @@ function UnitsTab({ course, units, files, notes }: { course: Course; units: Unit
   const [renaming, setRenaming] = useState<string | null>(null)
   const upload = async (list: File[]) => {
     const r = await addFiles(list, { courseId: course.id, autoUnits: true })
-    toast(`${r.files.length} file caricati · ${r.units.length} unità create`)
+    toast(`${r.files.length} file(s) uploaded · ${r.units.length} unit(s) created`)
   }
   const move = async (u: Unit, dir: -1 | 1) => {
     const i = units.indexOf(u)
@@ -145,27 +149,27 @@ function UnitsTab({ course, units, files, notes }: { course: Course; units: Unit
 
   return (
     <div>
-      <Dropzone onFiles={upload} title="Trascina qui i PDF delle lezioni" hint="Ogni PDF diventa un’unità con la sua pagina di appunti · clicca per sceglierli" />
+      <Dropzone onFiles={upload} title="Drop your lecture PDFs here" hint="Each PDF becomes a unit with its own notes page · or click to choose" />
       <div className="flex items-center justify-between mt-6 mb-3">
-        <h2 className="section-title !mb-0">Unità del corso</h2>
+        <h2 className="section-title !mb-0">Course units</h2>
         <button
           className="btn"
           onClick={async () => {
-            const u = await newUnit(course.id, `Unità ${units.length + 1}`)
+            const u = await newUnit(course.id, `Unit ${units.length + 1}`)
             setRenaming(u.id)
           }}
         >
-          <Plus size={15} /> Unità vuota
+          <Plus size={15} /> Empty unit
         </button>
       </div>
-      {units.length === 0 && <div className="empty">Nessuna unità: carica i PDF delle slide qui sopra.</div>}
+      {units.length === 0 && <div className="empty">No units yet: upload your slide PDFs above.</div>}
       <div className="flex flex-col gap-2">
         {units.map((u, i) => {
           const uf = files.filter((f) => f.unitId === u.id)
           const n = notes.find((x) => x.unitId === u.id)
           return (
             <motion.div layout key={u.id} className="unit-row card card-hover" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}>
-              <button onClick={() => cycle(u)} title="Stato: da fare → in corso → fatto" className="shrink-0">
+              <button onClick={() => cycle(u)} title="Status: to do → in progress → done" className="shrink-0">
                 <StatusIcon s={u.status} />
               </button>
               <span className="unit-num">{i + 1}</span>
@@ -186,23 +190,23 @@ function UnitsTab({ course, units, files, notes }: { course: Course; units: Unit
                   <div className="font-medium truncate">{u.title}</div>
                 )}
                 <div className="text-[12px] opacity-55 truncate">
-                  {uf.length} file · {n?.text.trim() ? `${n.text.trim().split(/\s+/).length} parole di appunti` : 'nessun appunto'}
+                  {uf.length} file{uf.length === 1 ? '' : 's'} · {n?.text.trim() ? `${n.text.trim().split(/\s+/).length} words of notes` : 'no notes yet'}
                 </div>
               </div>
               <div className="unit-actions">
-                <button className="icon-btn sm" onClick={() => move(u, -1)} disabled={i === 0} title="Su">
+                <button className="icon-btn sm" onClick={() => move(u, -1)} disabled={i === 0} title="Move up">
                   <ArrowUp size={14} />
                 </button>
-                <button className="icon-btn sm" onClick={() => move(u, 1)} disabled={i === units.length - 1} title="Giù">
+                <button className="icon-btn sm" onClick={() => move(u, 1)} disabled={i === units.length - 1} title="Move down">
                   <ArrowDown size={14} />
                 </button>
-                <button className="icon-btn sm" onClick={() => setRenaming(u.id)} title="Rinomina">
+                <button className="icon-btn sm" onClick={() => setRenaming(u.id)} title="Rename">
                   <Pencil size={14} />
                 </button>
                 <button
                   className="icon-btn sm danger"
-                  onClick={() => confirm(`Eliminare l’unità "${u.title}" e i suoi appunti? (i file restano nel corso)`) && deleteUnitDeep(u.id)}
-                  title="Elimina"
+                  onClick={() => confirm(`Delete the unit "${u.title}" and its notes? (the files stay in the course)`) && deleteUnitDeep(u.id)}
+                  title="Delete"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -216,24 +220,24 @@ function UnitsTab({ course, units, files, notes }: { course: Course; units: Unit
 }
 
 // ------------------------------------------------------------------ File
-const KIND_LABEL: Record<FileKind, string> = { slides: 'Slide', handwritten: 'Annotate a mano', exam: 'Esame / quiz', solution: 'Soluzioni', material: 'Materiale' }
+const KIND_LABEL: Record<FileKind, string> = { slides: 'Slides', handwritten: 'Handwritten notes', exam: 'Exam / quiz', solution: 'Solutions', material: 'Material' }
 
 function FilesTab({ course, units, files }: { course: Course; units: Unit[]; files: FileRec[] }) {
   const nav = useNavigate()
   const upload = async (list: File[]) => {
     const r = await addFiles(list, { courseId: course.id })
-    toast(`${r.files.length} file caricati`)
+    toast(`${r.files.length} file(s) uploaded`)
   }
   const open = async (f: FileRec) => {
     if (f.unitId && isPdf(f)) return nav(`/u/${f.unitId}?file=${f.id}`)
     const b = await getBlob(f.id)
-    if (!b) return toast('File non ancora disponibile su questo dispositivo', 'error')
+    if (!b) return toast('File not available on this device yet', 'error')
     window.open(URL.createObjectURL(b), '_blank')
   }
-  const groups = (Object.keys(KIND_LABEL) as FileKind[]).map((k) => ({ k, list: files.filter((f) => f.kind === k).sort((a, b) => a.name.localeCompare(b.name, 'it', { numeric: true })) }))
+  const groups = (Object.keys(KIND_LABEL) as FileKind[]).map((k) => ({ k, list: files.filter((f) => f.kind === k).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })) }))
   return (
     <div>
-      <Dropzone onFiles={upload} title="Carica file nel corso" hint="PDF di slide, esami passati, soluzioni, dispense… il tipo viene riconosciuto dal nome" />
+      <Dropzone onFiles={upload} title="Upload files to this course" hint="Slide PDFs, past exams, solutions, handouts… the type is detected from the file name" />
       {groups.map(
         (g) =>
           g.list.length > 0 && (
@@ -249,7 +253,7 @@ function FilesTab({ course, units, files }: { course: Course; units: Unit[]; fil
                       <div className="truncate font-medium text-[14px]">{f.name}</div>
                       <div className="text-[12px] opacity-55">
                         {fmtSize(f.size)}
-                        {f.pageCount ? ` · ${f.pageCount} pagine` : ''}
+                        {f.pageCount ? ` · ${f.pageCount} pages` : ''}
                         {f.uploaded ? ' · ☁︎' : ''}
                       </div>
                     </button>
@@ -272,7 +276,7 @@ function FilesTab({ course, units, files }: { course: Course; units: Unit[]; fil
                         }
                       }}
                     >
-                      <option value="">— nessuna unità —</option>
+                      <option value="">— no unit —</option>
                       {units.map((u) => (
                         <option key={u.id} value={u.id}>
                           {u.title}
@@ -282,14 +286,14 @@ function FilesTab({ course, units, files }: { course: Course; units: Unit[]; fil
                     {isPdf(f) && (
                       <button
                         className="icon-btn sm"
-                        title="Carica una versione aggiornata (gli appunti restano)"
+                        title="Upload an updated version (your notes are kept)"
                         onClick={async () => {
                           const [nf] = await pickFiles('application/pdf,.pdf', false)
                           if (!nf) return
-                          toast('Carico la nuova versione…', 'info')
+                          toast('Uploading the new version…', 'info')
                           try {
                             const r = await replaceFile(f, nf)
-                            toast(`Nuova versione di “${f.name}” caricata${r.moved ? ` · ${r.moved} collegamenti aggiornati` : ''}`)
+                            toast(`New version of “${f.name}” uploaded${r.moved ? ` · ${r.moved} slide links updated` : ''}`)
                           } catch (e) {
                             toast((e as Error).message, 'error')
                           }
@@ -300,7 +304,7 @@ function FilesTab({ course, units, files }: { course: Course; units: Unit[]; fil
                     )}
                     <button
                       className="icon-btn sm"
-                      title="Scarica"
+                      title="Download"
                       onClick={async () => {
                         const b = await getBlob(f.id)
                         if (b) void downloadFile(f, b)
@@ -308,7 +312,7 @@ function FilesTab({ course, units, files }: { course: Course; units: Unit[]; fil
                     >
                       <Download size={14} />
                     </button>
-                    <button className="icon-btn sm danger" title="Elimina" onClick={() => confirm(`Eliminare "${f.name}"?`) && remove('files', f.id)}>
+                    <button className="icon-btn sm danger" title="Delete" onClick={() => confirm(`Delete "${f.name}"?`) && remove('files', f.id)}>
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -317,7 +321,7 @@ function FilesTab({ course, units, files }: { course: Course; units: Unit[]; fil
             </section>
           ),
       )}
-      {files.length === 0 && <div className="empty mt-6">Nessun file caricato.</div>}
+      {files.length === 0 && <div className="empty mt-6">No files uploaded yet.</div>}
     </div>
   )
 }
@@ -339,36 +343,36 @@ function ExamTab({ course }: { course: Course }) {
         {d != null && d >= 0 && (
           <div className="countdown" style={{ ['--c' as string]: course.color }}>
             <div className="text-4xl font-bold">{d}</div>
-            <div className="text-[13px] opacity-75">giorni all’esame</div>
+            <div className="text-[13px] opacity-75">days to the exam</div>
           </div>
         )}
-        <F k="date" label="Data esame" type="date" />
-        <F k="time" label="Ora" type="time" />
+        <F k="date" label="Exam date" type="date" />
+        <F k="time" label="Time" type="time" />
         <label className="block">
-          <span className="label">Tipo di esame</span>
+          <span className="label">Exam type</span>
           <select className="field" defaultValue={exam.type ?? ''} onChange={(e) => set('type', e.target.value)}>
             <option value="">—</option>
-            {['Scritto', 'Orale', 'Scritto + orale', 'Quiz a crocette', 'Progetto', 'Pratico / laboratorio', 'Esame al computer'].map((t) => (
+            {['Written', 'Oral', 'Written + oral', 'Multiple choice', 'Project', 'Practical / lab', 'Computer-based'].map((t) => (
               <option key={t}>{t}</option>
             ))}
           </select>
         </label>
-        <F k="duration" label="Durata" ph="es. 2 ore" />
-        <F k="location" label="Aula / luogo" ph="es. Aula 3, piattaforma Moodle" />
-        <F k="materials" label="Materiale ammesso" ph="es. nessuno, calcolatrice, formulario" />
-        <F k="grading" label="Valutazione" ph="es. 30 domande, +1 giusta −0.25 sbagliata" />
+        <F k="duration" label="Duration" ph="e.g. 2 hours" />
+        <F k="location" label="Room / place" ph="e.g. Room 3, Moodle" />
+        <F k="materials" label="Allowed materials" ph="e.g. none, calculator, formula sheet" />
+        <F k="grading" label="Grading" ph="e.g. 30 questions, +1 right −0.25 wrong" />
       </div>
       <div className="card">
         <div className="flex items-center gap-2 mb-2">
           <BookOpenCheck size={17} className="text-accent" />
-          <b>Informazioni e argomenti d’esame</b>
+          <b>Exam info and topics</b>
         </div>
-        <p className="text-[12.5px] opacity-55 mb-3">Programma, argomenti più chiesti, consigli del professore, modalità d’iscrizione… Usa “/” per formattare.</p>
+        <p className="text-[12.5px] opacity-55 mb-3">Syllabus, most-asked topics, professor’s tips, how to register… Type “/” for formatting.</p>
         <NoteEditor
           docKey={'exam:' + course.id}
           initial={exam.doc ?? null}
           gutter={false}
-          placeholder="Es. “Il prof chiede sempre la dimostrazione del teorema X”…"
+          placeholder="E.g. “The professor always asks for the proof of theorem X”…"
           onSave={(doc) => put<Course>('courses', { ...course, exam: { ...(course.exam ?? {}), doc } })}
         />
       </div>
@@ -384,12 +388,12 @@ function QuizTab({ course, files, quizzes }: { course: Course; files: FileRec[];
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <p className="opacity-65 text-[14px] max-w-xl">Carica esami passati o quiz in PDF (anche con le soluzioni): l’AI estrae le domande così come sono e le rende interattive, senza inventarne di nuove.</p>
+        <p className="opacity-65 text-[14px] max-w-xl">Upload past exams or quizzes as PDF (with solutions too): the AI extracts the questions exactly as they are and makes them interactive — it never invents new ones.</p>
         <button className="btn btn-primary" onClick={() => setOpen(true)}>
-          <Sparkles size={15} /> Crea quiz da PDF
+          <Sparkles size={15} /> Create quiz from PDF
         </button>
       </div>
-      {quizzes.length === 0 && <div className="empty">Ancora nessun quiz.</div>}
+      {quizzes.length === 0 && <div className="empty">No quizzes yet.</div>}
       <div className="grid sm:grid-cols-2 gap-3">
         {quizzes.map((q) => {
           const at = attempts.filter((a) => a.quizId === q.id && a.finishedAt).sort((a, b) => b.finishedAt! - a.finishedAt!)
@@ -401,20 +405,20 @@ function QuizTab({ course, files, quizzes }: { course: Course; files: FileRec[];
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold truncate">{q.title}</div>
                   <div className="text-[12.5px] opacity-55">
-                    {q.questions.length} domande · {q.questions.filter((x) => x.type === 'open').length} aperte · {q.questions.filter((x) => x.solutionFromPdf).length} con soluzione
+                    {q.questions.length} questions · {q.questions.filter((x) => x.type === 'open').length} open · {q.questions.filter((x) => x.solutionFromPdf).length} with solution
                   </div>
                 </div>
-                <button className="icon-btn sm danger" onClick={() => confirm('Eliminare il quiz?') && remove('quizzes', q.id)}>
+                <button className="icon-btn sm danger" onClick={() => confirm('Delete this quiz?') && remove('quizzes', q.id)}>
                   <Trash2 size={14} />
                 </button>
               </div>
               {at.length > 0 && (
                 <div className="text-[12.5px] opacity-70">
-                  {at.length} tentativ{at.length === 1 ? 'o' : 'i'} · migliore {Math.round(best * 100)}%
+                  {at.length} attempt{at.length === 1 ? '' : 's'} · best {Math.round(best * 100)}%
                 </div>
               )}
               <button className="btn btn-primary mt-1" onClick={() => nav(`/q/${q.id}`)}>
-                <Play size={15} /> {at.length ? 'Rifai' : 'Inizia'}
+                <Play size={15} /> {at.length ? 'Retake' : 'Start'}
               </button>
             </motion.div>
           )
@@ -447,13 +451,13 @@ function NewQuizModal({ open, onClose, course, files }: { open: boolean; onClose
 
   const go = async () => {
     if (!exam.length) return
-    setBusy('Preparo…')
+    setBusy('Getting ready…')
     try {
       const questions = await extractQuiz(exam, sol, (m, f) => {
         setBusy(m)
         if (f != null) setFrac(f)
       })
-      if (!questions.length) throw new Error('Non ho trovato domande in questi PDF.')
+      if (!questions.length) throw new Error('No questions found in these PDFs.')
       const q = await put<Quiz>('quizzes', {
         id: uid(),
         courseId: course.id,
@@ -463,7 +467,7 @@ function NewQuizModal({ open, onClose, course, files }: { open: boolean; onClose
         createdAt: Date.now(),
         updatedAt: 0,
       })
-      toast(`${questions.length} domande estratte`)
+      toast(`${questions.length} questions extracted`)
       onClose()
       nav(`/q/${q.id}`)
     } catch (e) {
@@ -489,14 +493,14 @@ function NewQuizModal({ open, onClose, course, files }: { open: boolean; onClose
           </label>
         ))}
         <button className="pick add" onClick={() => uploadTo(kind)}>
-          <Plus size={14} /> Carica PDF…
+          <Plus size={14} /> Upload PDF…
         </button>
       </div>
     )
   }
 
   return (
-    <Modal open={open} onClose={() => !busy && onClose()} title="Nuovo quiz da PDF" wide>
+    <Modal open={open} onClose={() => !busy && onClose()} title="New quiz from PDF" wide>
       {busy ? (
         <div className="py-10 flex flex-col items-center gap-4 text-center">
           <Loader2 size={34} className="spin text-accent" />
@@ -504,25 +508,25 @@ function NewQuizModal({ open, onClose, course, files }: { open: boolean; onClose
           <div className="progress w-64">
             <span style={{ width: `${Math.round(frac * 100)}%` }} />
           </div>
-          <p className="text-[12.5px] opacity-55 max-w-sm">Con il piano gratuito di Groq i PDF lunghi richiedono qualche minuto: puoi lasciare aperta questa finestra.</p>
+          <p className="text-[12.5px] opacity-55 max-w-sm">On Groq’s free plan long PDFs take a few minutes: you can keep this window open.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <input className="field" placeholder="Titolo (es. Appello giugno 2025)" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input className="field" placeholder="Title (e.g. June 2025 exam)" value={title} onChange={(e) => setTitle(e.target.value)} />
           <div>
-            <div className="label">1 · PDF con le domande</div>
+            <div className="label">1 · PDF with the questions</div>
             <Pick sel={exam} setSel={setExam} kind="exam" />
           </div>
           <div>
-            <div className="label">2 · PDF con le soluzioni (facoltativo, se sono in un file separato)</div>
+            <div className="label">2 · PDF with the solutions (optional, if they are in a separate file)</div>
             <Pick sel={sol} setSel={setSol} kind="sol" />
           </div>
           <div className="flex justify-end gap-2">
             <button className="btn" onClick={onClose}>
-              Annulla
+              Cancel
             </button>
             <button className="btn btn-primary" disabled={!exam.length} onClick={go}>
-              <Sparkles size={15} /> Estrai domande
+              <Sparkles size={15} /> Extract questions
             </button>
           </div>
         </div>
@@ -542,20 +546,20 @@ function SummaryTab({ course, units, notes }: { course: Course; units: Unit[]; n
         <ScrollText size={40} />
       </div>
       <div className="flex-1">
-        <h2 className="text-xl font-semibold">Riassunto completo del corso</h2>
+        <h2 className="text-xl font-semibold">Full course summary</h2>
         <p className="opacity-65 text-[14px] mt-1 max-w-xl">
-          Tutti gli appunti delle unità uniti in un unico documento, in ordine, con indice. Si aggiorna da solo mentre scrivi. Puoi esportarlo in PDF o Markdown per ripassare prima dell’esame.
+          All your unit notes merged into one document, in order, with a table of contents. It updates as you write. Export it as PDF or Markdown to revise before the exam.
         </p>
         <div className="flex gap-4 mt-3 text-[13px] opacity-75">
           <span>
-            {withNotes}/{units.length} unità con appunti
+            {withNotes}/{units.length} units with notes
           </span>
-          <span>{words} parole</span>
-          <span>~{Math.max(1, Math.round(words / 200))} min di lettura</span>
+          <span>{words} words</span>
+          <span>~{Math.max(1, Math.round(words / 200))} min read</span>
         </div>
       </div>
-      <button className="btn btn-primary" onClick={() => nav(`/c/${course.id}/riassunto`)}>
-        <BookOpenCheck size={16} /> Apri riassunto
+      <button className="btn btn-primary" onClick={() => nav(`/c/${course.id}/summary`)}>
+        <BookOpenCheck size={16} /> Open summary
       </button>
     </div>
   )

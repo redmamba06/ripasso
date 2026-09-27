@@ -12,7 +12,7 @@ import { onRemoteChange } from '../lib/sync'
 import { addFiles, isPdf } from '../lib/files'
 import { replaceFile } from '../lib/versions'
 import { loadPdf, pageText, pageImage } from '../lib/pdf'
-import { chat, SYSTEM_TUTOR } from '../lib/groq'
+import { chat, tutor, aiLang } from '../lib/groq'
 import { mdToHtml } from '../lib/markdown'
 import { PdfViewer } from '../components/PdfViewer'
 import { NoteEditor } from '../editor/NoteEditor'
@@ -73,7 +73,7 @@ export default function UnitPage() {
     const unit = await db.units.get(unitId!)
     if (!unit) return { unit: null }
     const course = await db.courses.get(unit.courseId)
-    const files = alive(await db.files.where('unitId').equals(unit.id).toArray()).sort((a, b) => a.name.localeCompare(b.name, 'it', { numeric: true }))
+    const files = alive(await db.files.where('unitId').equals(unit.id).toArray()).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
     const allCourseFiles = alive(await db.files.where('courseId').equals(unit.courseId).toArray())
     const note = await db.notes.get(unit.id)
     return { unit, course, files, allCourseFiles, note }
@@ -194,7 +194,7 @@ export default function UnitPage() {
       })
       chain.run()
     }
-    if (!atEnd) toast('Inserito negli appunti')
+    if (!atEnd) toast('Added to your notes')
   }, [])
 
   const onSnip = useCallback(
@@ -207,7 +207,7 @@ export default function UnitPage() {
       const node = { type: 'image', attrs: { asset, width: '100%', slide: ref, alt: `Slide ${page}` } }
       const pos = insertPos(ed)
       ed.chain().insertContentAt(pos, [node, { type: 'paragraph' }]).setMeta(NO_AUTOLINK, true).focus().run()
-      toast('Ritaglio inserito negli appunti')
+      toast('Snip added to your notes')
       if (narrow) setMode('notes')
     },
     [unit, narrow],
@@ -224,24 +224,24 @@ export default function UnitPage() {
   const aiFromSlide = useCallback(
     async (m: 'notes' | 'explain' | 'questions') => {
       const s = await slideCtx(true)
-      if (!s) return toast('Apri prima una slide', 'error')
+      if (!s) return toast('Open a slide first', 'error')
       if (m === 'explain') {
         setAi(true)
-        setTimeout(() => chatHandle.current?.ask(`Spiegami la slide ${s.page} in modo chiaro, con un esempio.`, { withImage: s.text.length < 80 }), 250)
+        setTimeout(() => chatHandle.current?.ask(`Explain slide ${s.page} clearly, with an example.`, { withImage: s.text.length < 80 }), 250)
         return
       }
       if (m === 'questions') {
         setAi(true)
-        setTimeout(() => chatHandle.current?.ask(`Fammi 4 domande d’esame sulla slide ${s.page}, con una breve risposta per ciascuna.`), 250)
+        setTimeout(() => chatHandle.current?.ask(`Give me 4 exam-style questions about slide ${s.page}, each with a short answer.`), 250)
         return
       }
       setAiBusy(true)
       try {
         const useImg = s.text.replace(/\s/g, '').length < 80
-        const prompt = `Trasforma il contenuto di questa slide (pagina ${s.page}) del corso "${course?.name}" in appunti di studio sintetici in italiano: concetti chiave in **grassetto**, elenchi puntati, eventuali definizioni o formule. Non aggiungere informazioni che non siano nella slide, salvo brevissimi chiarimenti. Rispondi SOLO con gli appunti in Markdown, senza titolo generale.\n\nTesto della slide:\n"""\n${s.text.slice(0, 3500)}\n"""`
+        const prompt = `Turn the content of this slide (page ${s.page}) of the course "${course?.name}" into concise study notes in ${aiLang()}: key concepts in **bold**, bullet lists, any definitions or formulas. Do not add information that is not on the slide, apart from very short clarifications. Reply ONLY with the notes in Markdown, without an overall title.\n\nSlide text:\n"""\n${s.text.slice(0, 3500)}\n"""`
         const out = await chat(
           [
-            { role: 'system', content: SYSTEM_TUTOR },
+            { role: 'system', content: tutor() },
             useImg && s.image
               ? { role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: s.image } }] }
               : { role: 'user', content: prompt },
@@ -268,11 +268,11 @@ export default function UnitPage() {
       const f = given ?? (await pickFiles('application/pdf,.pdf', false))[0]
       if (!f) return
       try {
-        setTProgress('Carico la nuova versione…')
+        setTProgress('Uploading the new version…')
         const r = await replaceFile(rec, f, { editor: editorRef.current, openNoteId: unit?.id, onProgress: setTProgress })
         const diff = r.newPages - r.oldPages
         toast(
-          `Nuova versione caricata${diff ? ` (${diff > 0 ? '+' : ''}${diff} pagine)` : ''}` + (r.moved ? ` · ${r.moved} collegamenti spostati sulle pagine giuste` : '') + ' · appunti intatti',
+          `New version uploaded${diff ? ` (${diff > 0 ? '+' : ''}${diff} pages)` : ''}` + (r.moved ? ` · ${r.moved} slide links moved to the right pages` : '') + ' · notes untouched',
         )
       } catch (e) {
         toast((e as Error).message, 'error')
@@ -296,24 +296,24 @@ export default function UnitPage() {
       try {
         for (const [i, p] of pages.entries()) {
           if (tCancel.current) break
-          setTProgress(pages.length > 1 ? `Leggo la scrittura a mano: pagina ${p} (${i + 1}/${pages.length})…` : `Leggo la scrittura a mano a pagina ${p}…`)
+          setTProgress(pages.length > 1 ? `Reading your handwriting: page ${p} (${i + 1}/${pages.length})…` : `Reading your handwriting on page ${p}…`)
           const [img, printed] = await Promise.all([pageImage(doc, p, 1400), pageText(doc, p)])
-          const prompt = `Questa è una slide universitaria (corso "${course?.name}") su cui lo studente ha preso appunti A MANO durante la lezione.
-Il testo STAMPATO della slide è già noto, non ripeterlo:
+          const prompt = `This is a university slide (course "${course?.name}") on which the student took HANDWRITTEN notes during the lecture.
+The PRINTED text of the slide is already known, do not repeat it:
 «${printed.slice(0, 1500)}»
-Trascrivi SOLO ciò che è scritto a mano (penna, matita, note), fedelmente, correggendo solo errori evidenti di lettura.
-Organizzalo come appunti in Markdown (elenchi, **grassetto** per parole sottolineate o cerchiate). Se una nota si riferisce a un elemento della slide (freccia, cerchio), indica brevemente a cosa (es. "→ riferito a: Stack").
-Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
+Transcribe ONLY what is handwritten (pen, pencil, notes), faithfully, fixing only obvious reading errors. Keep the language the student wrote in.
+Organise it as Markdown notes (lists, **bold** for underlined or circled words). If a note refers to an element of the slide (arrow, circle), briefly say what (e.g. "→ refers to: Stack").
+If there is NO handwriting on the page reply exactly: NONE`
           const out = await chat(
             [{ role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: img } }] }],
-            { model: useSettings.getState().visionModel, maxTokens: 1500, temperature: 0.1, onWait: (sec) => setTProgress(`Attendo il limite gratuito di Groq (${sec}s)…`) },
+            { model: useSettings.getState().visionModel, maxTokens: 1500, temperature: 0.1, onWait: (sec) => setTProgress(`Waiting for Groq’s free-plan limit (${sec}s)…`) },
           )
           const clean = out.trim()
-          if (!clean || /^NESSUNA\.?$/i.test(clean)) continue
+          if (!clean || /^(NONE|NESSUNA)\.?$/i.test(clean)) continue
           await insertMarkdown(clean, encodeRef(fid, p), pages.length > 1)
           added++
         }
-        toast(added ? `Trascritte ${added} pagin${added === 1 ? 'a' : 'e'} negli appunti` : 'Nessuna scrittura a mano trovata', added ? 'ok' : 'info')
+        toast(added ? `Transcribed ${added} page${added === 1 ? '' : 's'} into your notes` : 'No handwriting found', added ? 'ok' : 'info')
       } catch (e) {
         toast((e as Error).message, 'error')
       } finally {
@@ -378,7 +378,7 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
       autoLink: () => {
         const v = !useSettings.getState().autoLink
         setS({ autoLink: v })
-        toast(v ? 'Collegamento automatico attivo' : 'Collegamento automatico disattivato', 'info')
+        toast(v ? 'Auto-link on' : 'Auto-link off', 'info')
       },
       linkBlock: () => {
         const e = ed()
@@ -387,7 +387,7 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
         const { $from } = e.state.selection
         if ($from.depth < 1) return
         e.chain().setBlockSlide($from.before(1), ref).setMeta(NO_AUTOLINK, true).run()
-        toast('Blocco collegato alla slide ' + useViewer.getState().page)
+        toast('Block linked to slide ' + useViewer.getState().page)
       },
       examBox: () => ed()?.chain().focus().setCallout('exam').run(),
       terminal: () =>
@@ -399,14 +399,14 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
       codeBlock: () => ed()?.chain().focus().setCodeBlock({ language: 'python' }).run(),
       markDone: () => {
         void patch<Unit>('units', unit.id, { status: 'done' })
-        toast('Unità segnata come studiata')
+        toast('Unit marked as studied')
       },
       draw: toggleInk,
       drawFormula: toggleInk,
       aiChat: () => setAi((a) => !a),
       aiNotes: () => void aiFromSlide('notes'),
       aiExplain: () => void aiFromSlide('explain'),
-      summary: () => nav(`/c/${unit.courseId}/riassunto`),
+      summary: () => nav(`/c/${unit.courseId}/summary`),
     })
   }, [unit, narrow, setS, drawShortcut, aiFromSlide, nav, toggleInk])
 
@@ -457,7 +457,7 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
   if (!unit || unit.deleted || !course)
     return (
       <div className="page">
-        <p className="opacity-60">Unità non trovata.</p>
+        <p className="opacity-60">Unit not found.</p>
       </div>
     )
 
@@ -471,7 +471,7 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
         <button className="icon-btn" onClick={() => useUI.getState().setSidebar(!useUI.getState().sidebar)} title="Menu">
           <Menu size={17} />
         </button>
-        <button className="icon-btn max-sm:hidden" onClick={() => nav(`/c/${course.id}`)} title="Torna al corso">
+        <button className="icon-btn max-sm:hidden" onClick={() => nav(`/c/${course.id}`)} title="Back to course">
           <ArrowLeft size={17} />
         </button>
         <div className="min-w-0 flex-1">
@@ -486,32 +486,32 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
             onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
           />
         </div>
-        <button className="icon-btn max-sm:hidden" onClick={cycleStatus} title="Stato dell’unità">
+        <button className="icon-btn max-sm:hidden" onClick={cycleStatus} title="Unit status">
           {unit.status === 'done' ? <CheckCircle2 size={18} className="text-emerald-500" /> : unit.status === 'doing' ? <CircleDot size={18} className="text-amber-500" /> : <Circle size={18} className="opacity-40" />}
         </button>
         <div className="seg">
           {!narrow && (
-            <button className={mode === 'split' ? 'on' : ''} onClick={() => setMode('split')} title="Diviso">
+            <button className={mode === 'split' ? 'on' : ''} onClick={() => setMode('split')} title="Split view">
               <Columns2 size={15} />
             </button>
           )}
-          <button className={mode === 'slides' ? 'on' : ''} onClick={() => setMode('slides')} title="Solo slide">
+          <button className={mode === 'slides' ? 'on' : ''} onClick={() => setMode('slides')} title="Slides only">
             <Presentation size={15} />
           </button>
-          <button className={mode === 'notes' ? 'on' : ''} onClick={() => setMode('notes')} title="Solo appunti">
+          <button className={mode === 'notes' ? 'on' : ''} onClick={() => setMode('notes')} title="Notes only">
             <NotebookPen size={15} />
           </button>
         </div>
         <button
           className={`btn btn-sm ${autoLink ? 'btn-soft' : ''}`}
           onClick={() => setS({ autoLink: !autoLink })}
-          title={autoLink ? 'Collegamento automatico alle slide ATTIVO: ogni nuovo paragrafo viene collegato alla slide aperta' : 'Collegamento automatico DISATTIVATO'}
+          title={autoLink ? 'Auto-link ON: every new paragraph is linked to the open slide' : 'Auto-link OFF'}
         >
           {autoLink ? <Link2 size={15} /> : <Unlink size={15} />}
           <span className="hidden xl:inline">{autoLink ? 'Auto-link' : 'No link'}</span>
         </button>
-        <button className={`btn btn-sm ${inkActive ? 'btn-primary' : ''}`} title="Matita: scrivi a mano ovunque sugli appunti (anche sopra il testo)" onClick={toggleInk}>
-          <PencilLine size={15} /> <span className="hidden xl:inline">{inkActive ? 'Fine matita' : 'Matita'}</span>
+        <button className={`btn btn-sm ${inkActive ? 'btn-primary' : ''}`} title="Pencil: write by hand anywhere on your notes (even over the text)" onClick={toggleInk}>
+          <PencilLine size={15} /> <span className="hidden xl:inline">{inkActive ? 'Done' : 'Pencil'}</span>
         </button>
         <PencilModeToggle />
         <button className={`btn btn-sm ${ai ? 'btn-primary' : 'btn-ai'}`} onClick={() => setAi(!ai)}>
@@ -547,10 +547,10 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
               const f = [...e.dataTransfer.files].find((x) => isPdf(x))
               if (!openFile || !f) return
               e.preventDefault()
-              if (confirm(`Sostituire “${openFile.name}” con la versione aggiornata “${f.name}”?\nGli appunti, la scrittura a mano e i collegamenti alle slide restano.`)) void newVersion(openFile, f)
+              if (confirm(`Replace “${openFile.name}” with the updated version “${f.name}”?\nYour notes, handwriting and slide links are kept.`)) void newVersion(openFile, f)
             }}
           >
-            {dropNew && <div className="drop-hint">Rilascia per caricare la nuova versione del PDF</div>}
+            {dropNew && <div className="drop-hint">Drop to upload the new version of the PDF</div>}
             {fileId ? (
               <PdfViewer
                 key={fileId + ':' + (openFile?.rev ?? 0)}
@@ -565,10 +565,10 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
                 <Dropzone
                   onFiles={async (l) => {
                     const r = await addFiles(l, { courseId: unit.courseId, unitId: unit.id, kind: 'slides' })
-                    toast(`${r.files.length} file aggiunti all’unità`)
+                    toast(`${r.files.length} file(s) added to the unit`)
                   }}
-                  title="Carica le slide di questa unità"
-                  hint="Trascina il PDF qui o clicca per sceglierlo"
+                  title="Upload the slides of this unit"
+                  hint="Drop the PDF here or click to choose it"
                 />
               </div>
             )}
@@ -625,7 +625,7 @@ Se nella pagina non c'è NESSUNA scrittura a mano rispondi esattamente: NESSUNA`
           <motion.div className="task-pill glass-strong" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}>
             <Loader2 size={15} className="spin text-accent" /> {tProgress}
             <button className="btn btn-sm" onClick={() => (tCancel.current = true)}>
-              Annulla
+              Cancel
             </button>
           </motion.div>
         )}
@@ -638,20 +638,20 @@ function AddFileBtn({ unit, kind }: { unit: Unit; kind: 'slides' | 'handwritten'
   return (
     <button
       className="file-tab add"
-      title={kind === 'slides' ? 'Aggiungi un altro PDF di slide a questa unità' : 'Carica le slide annotate a mano sull’iPad (PDF esportato da GoodNotes, Notability, Note…)'}
+      title={kind === 'slides' ? 'Add another slide PDF to this unit' : 'Upload slides you annotated by hand on the iPad (PDF exported from GoodNotes, Notability, Notes…)'}
       onClick={async () => {
         const l = await pickFiles('application/pdf,.pdf')
         if (!l.length) return
         const r = await addFiles(l, { courseId: unit.courseId, unitId: unit.id, kind })
         if (r.files[0]) useViewer.getState().setOpen(r.files[0].id)
-        if (kind === 'handwritten') toast('PDF annotato caricato: usa “A mano → testo” per trascrivere la tua scrittura', 'info')
+        if (kind === 'handwritten') toast('Annotated PDF uploaded: use “Handwriting → text” to transcribe your writing', 'info')
       }}
     >
       {kind === 'slides' ? (
         <Plus size={13} />
       ) : (
         <>
-          <PenLine size={12} /> <span className="ml-1">Annotato</span>
+          <PenLine size={12} /> <span className="ml-1">Annotated</span>
         </>
       )}
     </button>
@@ -677,13 +677,13 @@ function InkBar({ handle }: { handle: React.MutableRefObject<InkHandle | null> }
   return (
     <motion.div className="ink-bar glass-strong" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }} onPointerDown={(e) => e.stopPropagation()}>
       <div className="draw-group">
-        <button className={tool === 'pen' ? 'on' : ''} onClick={() => set({ tool: 'pen' })} title="Penna">
+        <button className={tool === 'pen' ? 'on' : ''} onClick={() => set({ tool: 'pen' })} title="Pen">
           <Pen size={16} />
         </button>
-        <button className={tool === 'hl' ? 'on' : ''} onClick={() => set({ tool: 'hl' })} title="Evidenziatore">
+        <button className={tool === 'hl' ? 'on' : ''} onClick={() => set({ tool: 'hl' })} title="Highlighter">
           <Highlighter size={16} />
         </button>
-        <button className={tool === 'eraser' ? 'on' : ''} onClick={() => set({ tool: 'eraser' })} title="Gomma">
+        <button className={tool === 'eraser' ? 'on' : ''} onClick={() => set({ tool: 'eraser' })} title="Eraser">
           <Eraser size={16} />
         </button>
       </div>
@@ -694,25 +694,25 @@ function InkBar({ handle }: { handle: React.MutableRefObject<InkHandle | null> }
       </div>
       <div className="draw-group">
         {INK_SIZES.map((s, i) => (
-          <button key={s} className={size === i ? 'on' : ''} onClick={() => set({ size: i })} title="Spessore">
+          <button key={s} className={size === i ? 'on' : ''} onClick={() => set({ size: i })} title="Thickness">
             <span className="dot" style={{ width: 3 + i * 3, height: 3 + i * 3 }} />
           </button>
         ))}
       </div>
       <div className="draw-group">
-        <button onClick={() => h?.undo()} disabled={!h?.canUndo} title="Annulla (⌘Z)">
+        <button onClick={() => h?.undo()} disabled={!h?.canUndo} title="Undo (⌘Z)">
           <Undo2 size={16} />
         </button>
-        <button onClick={() => h?.redo()} disabled={!h?.canRedo} title="Ripeti (⌘⇧Z)">
+        <button onClick={() => h?.redo()} disabled={!h?.canRedo} title="Redo (⌘⇧Z)">
           <Redo2 size={16} />
         </button>
       </div>
       <div className="draw-group">
-        <button className="wide" onClick={() => conv('latex')} disabled={!!busy || !h?.session} title="Trasforma quello che hai appena scritto a mano in una formula LaTeX">
+        <button className="wide" onClick={() => conv('latex')} disabled={!!busy || !h?.session} title="Turn what you just wrote by hand into a LaTeX formula">
           {busy === 'latex' ? <Loader2 size={15} className="spin" /> : <Sigma size={15} />} Formula
         </button>
-        <button className="wide" onClick={() => conv('text')} disabled={!!busy || !h?.session} title="Trasforma quello che hai appena scritto a mano in testo">
-          {busy === 'text' ? <Loader2 size={15} className="spin" /> : <Type size={15} />} Testo
+        <button className="wide" onClick={() => conv('text')} disabled={!!busy || !h?.session} title="Turn what you just wrote by hand into text">
+          {busy === 'text' ? <Loader2 size={15} className="spin" /> : <Type size={15} />} Text
         </button>
       </div>
       <div className="draw-group">
@@ -720,7 +720,7 @@ function InkBar({ handle }: { handle: React.MutableRefObject<InkHandle | null> }
       </div>
       <div className="draw-group">
         <button className="wide done" onClick={() => h?.finish()}>
-          <Check size={15} /> Fatto
+          <Check size={15} /> Done
         </button>
       </div>
     </motion.div>

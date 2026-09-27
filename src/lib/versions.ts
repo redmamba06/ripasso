@@ -27,7 +27,7 @@ async function pagesWords(blob: Blob, onP?: (s: string) => void, label = '') {
   const doc = await pdfFromBlob(blob)
   const out: Set<string>[] = []
   for (let p = 1; p <= doc.numPages; p++) {
-    if (p % 10 === 1) onP?.(`${label} pagina ${p}/${doc.numPages}…`)
+    if (p % 10 === 1) onP?.(`${label} page ${p}/${doc.numPages}…`)
     out.push(words(await pageText(doc, p)))
   }
   void doc.cleanup()
@@ -99,15 +99,15 @@ export interface ReplaceResult {
  */
 export async function replaceFile(rec: FileRec, file: File, opts: { editor?: Editor | null; openNoteId?: string; onProgress?: (s: string) => void } = {}): Promise<ReplaceResult> {
   const onP = opts.onProgress
-  onP?.('Leggo la versione attuale…')
+  onP?.('Reading the current version…')
   const oldBlob = await getBlob(rec.id)
-  const newWords = await pagesWords(file, onP, 'Nuova versione:')
+  const newWords = await pagesWords(file, onP, 'New version:')
   let map = new Map<number, number>()
   let oldPages = rec.pageCount ?? 0
   if (oldBlob) {
-    const oldWords = await pagesWords(oldBlob, onP, 'Versione attuale:')
+    const oldWords = await pagesWords(oldBlob, onP, 'Current version:')
     oldPages = oldWords.length
-    onP?.('Confronto le pagine…')
+    onP?.('Comparing pages…')
     map = alignPages(oldWords, newWords)
   }
 
@@ -119,7 +119,7 @@ export async function replaceFile(rec: FileRec, file: File, opts: { editor?: Edi
   let moved = 0
   const identity = [...map].every(([a, b]) => a === b)
   if (map.size && !identity) {
-    onP?.('Aggiorno i collegamenti alle slide…')
+    onP?.('Updating slide links…')
     const notes = alive(await db.notes.where('courseId').equals(rec.courseId).toArray())
     for (const n of notes) {
       if (n.id === opts.openNoteId && opts.editor && !opts.editor.isDestroyed) {

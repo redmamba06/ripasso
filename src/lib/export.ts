@@ -53,9 +53,9 @@ function block(n: JSONContent, indent = ''): string {
     case 'horizontalRule':
       return '---'
     case 'drawing':
-      return '*[disegno a mano]*'
+      return '*[hand drawing]*'
     case 'image':
-      return `*[immagine: ${n.attrs?.alt || 'ritaglio slide'}]*`
+      return `*[image: ${n.attrs?.alt || 'slide snip'}]*`
     case 'table': {
       const rows = (n.content ?? []).map((r) => (r.content ?? []).map((c) => (c.content ?? []).map((p) => inline(p)).join(' ').replace(/\|/g, '\\|')))
       if (!rows.length) return ''

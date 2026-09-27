@@ -5,50 +5,50 @@ export const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.
 export interface ShortcutDef {
   id: string
   label: string
-  group: 'Generali' | 'Slide e appunti' | 'Disegno a mano' | 'AI'
+  group: 'General' | 'Slides & notes' | 'Handwriting' | 'AI'
   /** combinazione predefinita, es. "Mod+Shift+D" (Mod = ⌘ su Mac/iPad, Ctrl su Windows) */
   def: string
   hint?: string
 }
 
 export const SHORTCUTS: ShortcutDef[] = [
-  { id: 'search', label: 'Cerca negli appunti', group: 'Generali', def: 'Mod+K' },
-  { id: 'help', label: 'Mostra tutte le scorciatoie', group: 'Generali', def: 'Mod+/' },
-  { id: 'sidebar', label: 'Mostra/nascondi menu laterale', group: 'Generali', def: 'Mod+\\' },
-  { id: 'home', label: 'Vai alla Home', group: 'Generali', def: 'Alt+0' },
-  { id: 'settings', label: 'Apri Impostazioni', group: 'Generali', def: 'Mod+,' },
-  { id: 'newCourse', label: 'Nuovo corso', group: 'Generali', def: 'Alt+N' },
-  { id: 'summary', label: 'Apri il riassunto del corso', group: 'Generali', def: 'Alt+R' },
+  { id: 'search', label: 'Search your notes', group: 'General', def: 'Mod+K' },
+  { id: 'help', label: 'Show all shortcuts', group: 'General', def: 'Mod+/' },
+  { id: 'sidebar', label: 'Show/hide sidebar', group: 'General', def: 'Mod+\\' },
+  { id: 'home', label: 'Go to Home', group: 'General', def: 'Alt+0' },
+  { id: 'settings', label: 'Open Settings', group: 'General', def: 'Mod+,' },
+  { id: 'newCourse', label: 'New course', group: 'General', def: 'Alt+N' },
+  { id: 'summary', label: 'Open the course summary', group: 'General', def: 'Alt+R' },
 
-  { id: 'nextSlide', label: 'Slide successiva (anche mentre scrivi)', group: 'Slide e appunti', def: 'Alt+ArrowDown' },
-  { id: 'prevSlide', label: 'Slide precedente (anche mentre scrivi)', group: 'Slide e appunti', def: 'Alt+ArrowUp' },
-  { id: 'viewSplit', label: 'Vista divisa slide | appunti', group: 'Slide e appunti', def: 'Alt+1' },
-  { id: 'viewSlides', label: 'Solo slide', group: 'Slide e appunti', def: 'Alt+2' },
-  { id: 'viewNotes', label: 'Solo appunti', group: 'Slide e appunti', def: 'Alt+3' },
-  { id: 'snip', label: 'Ritaglia una parte della slide', group: 'Slide e appunti', def: 'Mod+Shift+S' },
-  { id: 'linkBlock', label: 'Collega il blocco alla slide aperta', group: 'Slide e appunti', def: 'Mod+Shift+L' },
-  { id: 'autoLink', label: 'Attiva/disattiva collegamento automatico', group: 'Slide e appunti', def: 'Alt+L' },
-  { id: 'examBox', label: 'Riquadro “Da sapere per l’esame”', group: 'Slide e appunti', def: 'Mod+Shift+E' },
-  { id: 'terminal', label: 'Inserisci terminale Linux', group: 'Slide e appunti', def: 'Mod+Alt+T' },
-  { id: 'codeBlock', label: 'Inserisci blocco di codice', group: 'Slide e appunti', def: 'Mod+Alt+C' },
-  { id: 'markDone', label: 'Segna l’unità come studiata', group: 'Slide e appunti', def: 'Alt+D' },
-  { id: 'zoomIn', label: 'Ingrandisci slide', group: 'Slide e appunti', def: 'Alt+=' },
-  { id: 'zoomOut', label: 'Riduci slide', group: 'Slide e appunti', def: 'Alt+-' },
+  { id: 'nextSlide', label: 'Next slide (even while typing)', group: 'Slides & notes', def: 'Alt+ArrowDown' },
+  { id: 'prevSlide', label: 'Previous slide (even while typing)', group: 'Slides & notes', def: 'Alt+ArrowUp' },
+  { id: 'viewSplit', label: 'Split view slides | notes', group: 'Slides & notes', def: 'Alt+1' },
+  { id: 'viewSlides', label: 'Slides only', group: 'Slides & notes', def: 'Alt+2' },
+  { id: 'viewNotes', label: 'Notes only', group: 'Slides & notes', def: 'Alt+3' },
+  { id: 'snip', label: 'Snip part of the slide', group: 'Slides & notes', def: 'Mod+Shift+S' },
+  { id: 'linkBlock', label: 'Link the block to the open slide', group: 'Slides & notes', def: 'Mod+Shift+L' },
+  { id: 'autoLink', label: 'Toggle auto-link', group: 'Slides & notes', def: 'Alt+L' },
+  { id: 'examBox', label: '“Exam must-know” box', group: 'Slides & notes', def: 'Mod+Shift+E' },
+  { id: 'terminal', label: 'Insert Linux terminal', group: 'Slides & notes', def: 'Mod+Alt+T' },
+  { id: 'codeBlock', label: 'Insert code block', group: 'Slides & notes', def: 'Mod+Alt+C' },
+  { id: 'markDone', label: 'Mark unit as studied', group: 'Slides & notes', def: 'Alt+D' },
+  { id: 'zoomIn', label: 'Zoom in on slides', group: 'Slides & notes', def: 'Alt+=' },
+  { id: 'zoomOut', label: 'Zoom out of slides', group: 'Slides & notes', def: 'Alt+-' },
 
-  { id: 'draw', label: 'Matita: scrivi a mano sugli appunti (attiva/disattiva)', group: 'Disegno a mano', def: 'Mod+Shift+D' },
-  { id: 'pencilMode', label: 'Apple Pencil: a mano ↔ testo (Scribble)', group: 'Disegno a mano', def: 'Alt+T' },
-  { id: 'drawFormula', label: 'Converti la scrittura a mano in formula', group: 'Disegno a mano', def: 'Mod+Shift+F', hint: 'con la matita attiva' },
-  { id: 'toolPen', label: 'Penna', group: 'Disegno a mano', def: 'Alt+P', hint: 'mentre disegni' },
-  { id: 'toolHl', label: 'Evidenziatore', group: 'Disegno a mano', def: 'Alt+H', hint: 'mentre disegni' },
-  { id: 'toolEraser', label: 'Gomma', group: 'Disegno a mano', def: 'Alt+E', hint: 'mentre disegni' },
-  { id: 'drawFull', label: 'Foglio da disegno a schermo intero', group: 'Disegno a mano', def: 'Alt+F', hint: 'nel foglio da disegno' },
-  { id: 'drawDone', label: 'Fine matita / fine disegno', group: 'Disegno a mano', def: 'Escape', hint: 'mentre disegni' },
-  { id: 'toLatex', label: 'Converti la scrittura a mano in testo', group: 'Disegno a mano', def: 'Alt+M', hint: 'mentre disegni' },
+  { id: 'draw', label: 'Pencil: write by hand on your notes (on/off)', group: 'Handwriting', def: 'Mod+Shift+D' },
+  { id: 'pencilMode', label: 'Apple Pencil: handwriting ↔ text (Scribble)', group: 'Handwriting', def: 'Alt+T' },
+  { id: 'drawFormula', label: 'Convert handwriting to a formula', group: 'Handwriting', def: 'Mod+Shift+F', hint: 'with the pencil on' },
+  { id: 'toolPen', label: 'Pen', group: 'Handwriting', def: 'Alt+P', hint: 'while drawing' },
+  { id: 'toolHl', label: 'Highlighter', group: 'Handwriting', def: 'Alt+H', hint: 'while drawing' },
+  { id: 'toolEraser', label: 'Eraser', group: 'Handwriting', def: 'Alt+E', hint: 'while drawing' },
+  { id: 'drawFull', label: 'Drawing sheet full screen', group: 'Handwriting', def: 'Alt+F', hint: 'in a drawing sheet' },
+  { id: 'drawDone', label: 'Finish pencil / drawing', group: 'Handwriting', def: 'Escape', hint: 'while drawing' },
+  { id: 'toLatex', label: 'Convert handwriting to text', group: 'Handwriting', def: 'Alt+M', hint: 'while drawing' },
 
-  { id: 'aiChat', label: 'Apri/chiudi chat AI', group: 'AI', def: 'Mod+J' },
-  { id: 'aiNotes', label: 'Appunti AI dalla slide aperta', group: 'AI', def: 'Mod+Alt+A' },
-  { id: 'aiExplain', label: 'Spiegami la slide aperta', group: 'AI', def: 'Mod+Shift+X' },
-  { id: 'handwriting', label: 'Scrittura a mano → testo (pagina aperta)', group: 'AI', def: 'Mod+Alt+H' },
+  { id: 'aiChat', label: 'Open/close AI chat', group: 'AI', def: 'Mod+J' },
+  { id: 'aiNotes', label: 'AI notes from the open slide', group: 'AI', def: 'Mod+Alt+A' },
+  { id: 'aiExplain', label: 'Explain the open slide', group: 'AI', def: 'Mod+Shift+X' },
+  { id: 'handwriting', label: 'Handwriting → text (open page)', group: 'AI', def: 'Mod+Alt+H' },
 ]
 
 export const comboOf = (id: string) => {

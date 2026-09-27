@@ -19,6 +19,8 @@ L'app è già collegata al progetto Supabase `ufcfpxqfhvbnpunfzrea` (URL e chiav
 - Dati: tabella `records` con RLS (ognuno vede solo i propri), realtime tra dispositivi; PDF e immagini nel bucket privato `blobs`. Schema in `supabase/schema.sql`.
 - AI: la funzione `supabase/functions/groq` fa da ponte verso Groq. La chiave è nel segreto `GROQ_API_KEY` e risponde solo alle email in `ALLOWED_EMAILS` → la chiave non è mai nel browser né nel repository. Una chiave personale inserita in Impostazioni ha la precedenza (solo su quel dispositivo).
 
+- Calendario: la funzione `supabase/functions/calendar` (senza login, protetta da un token casuale per utente salvato in `records` con `tbl='calfeed'`) serve l'orario come `.ics` per l'abbonamento da Google/Apple Calendar. `ics.ts` è una copia di `src/lib/ics.ts`: se cambi il generatore, ricopialo e ripubblica la funzione.
+
 ## Pubblicazione
 
 ```bash
@@ -33,4 +35,5 @@ npm run build && cd dist && touch .nojekyll && git init -b gh-pages && git add -
 - `src/lib/quiz.ts` – estrazione domande dai PDF d'esame e correzione
 - `src/editor/` – editor stile Notion (TipTap): menu `/`, codice stile IDE, terminale Linux, riquadri, collegamenti alle slide
 - `src/lib/shortcuts.ts` – scorciatoie da tastiera personalizzabili (⌘/ per l'elenco)
+- `src/lib/ics.ts`, `src/components/WeekGrid.tsx`, `src/components/ScheduleTab.tsx`, `src/pages/Calendar.tsx` – orario dei corsi, calendario settimanale, export .ics / Google Calendar
 - `src/pages/` – Home, Corso (unità, file, esame, quiz, riassunto), Unità (slide + appunti), Quiz, Riassunto, Impostazioni

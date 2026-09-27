@@ -51,15 +51,15 @@ export function CourseForm({ open, onClose, course }: { open: boolean; onClose: 
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={course ? 'Modifica corso' : 'Nuovo corso'}>
+    <Modal open={open} onClose={onClose} title={course ? 'Edit course' : 'New course'}>
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <div className="course-badge big" style={{ background: color }}>
             <CourseIcon course={{ emoji, logo }} />
           </div>
-          <input className="field text-lg flex-1" autoFocus placeholder="Nome del corso (es. Sistemi Operativi)" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} />
+          <input className="field text-lg flex-1" autoFocus placeholder="Course name (e.g. Operating Systems)" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && save()} />
         </div>
-        <input className="field" placeholder="Docente (facoltativo)" value={prof} onChange={(e) => setProf(e.target.value)} />
+        <input className="field" placeholder="Professor (optional)" value={prof} onChange={(e) => setProf(e.target.value)} />
         <div>
           <div className="label">Logo</div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -80,18 +80,18 @@ export function CourseForm({ open, onClose, course }: { open: boolean; onClose: 
                 }
               }}
             >
-              {busy ? <Loader2 size={15} className="spin" /> : <ImagePlus size={15} />} {logo ? 'Cambia foto' : 'Carica una foto'}
+              {busy ? <Loader2 size={15} className="spin" /> : <ImagePlus size={15} />} {logo ? 'Change photo' : 'Upload a photo'}
             </button>
             {logo && (
               <button className="btn btn-danger-soft" onClick={() => setLogo(null)}>
-                <X size={15} /> Usa l’icona
+                <X size={15} /> Use the icon
               </button>
             )}
-            <span className="text-[12px] opacity-55">Viene ritagliata al quadrato. Senza foto si usa l’icona qui sotto.</span>
+            <span className="text-[12px] opacity-55">It is cropped to a square. Without a photo the icon below is used.</span>
           </div>
         </div>
         <div className={logo ? 'opacity-40 pointer-events-none' : ''}>
-          <div className="label">Icona</div>
+          <div className="label">Icon</div>
           <div className="flex flex-wrap gap-1.5">
             {COURSE_EMOJI.map((e) => (
               <button key={e} className={`emoji-pick ${e === emoji ? 'on' : ''}`} onClick={() => setEmoji(e)}>
@@ -101,7 +101,7 @@ export function CourseForm({ open, onClose, course }: { open: boolean; onClose: 
           </div>
         </div>
         <div>
-          <div className="label">Colore</div>
+          <div className="label">Color</div>
           <div className="flex flex-wrap gap-2">
             {COURSE_COLORS.map((c) => (
               <button key={c} className={`color-pick ${c === color ? 'on' : ''}`} style={{ background: c }} onClick={() => setColor(c)} aria-label={c} />
@@ -110,10 +110,10 @@ export function CourseForm({ open, onClose, course }: { open: boolean; onClose: 
         </div>
         <div className="flex justify-end gap-2 mt-2">
           <button className="btn" onClick={onClose}>
-            Annulla
+            Cancel
           </button>
           <button className="btn btn-primary" onClick={save} disabled={!name.trim()}>
-            {course ? 'Salva' : 'Crea corso'}
+            {course ? 'Save' : 'Create course'}
           </button>
         </div>
       </div>

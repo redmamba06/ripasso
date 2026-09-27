@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { motion } from 'motion/react'
 import { Send, X, Sparkles, FilePlus2, Trash2, Loader2, Image as ImageIcon, Presentation, NotebookPen, Square } from 'lucide-react'
 import { db, put, type Chat, type ChatMsg } from '../lib/db'
-import { stream, SYSTEM_TUTOR, type GMsg, type Part } from '../lib/groq'
+import { stream, tutor, type GMsg, type Part } from '../lib/groq'
 import { mdToHtml, renderMath } from '../lib/markdown'
 import { settings } from '../lib/settings'
 import { toast } from './Toast'
@@ -58,20 +58,20 @@ export function AiChat({
     abort.current = new AbortController()
     try {
       const withImage = opts.withImage ?? useImage
-      let context = `Corso: ${ctx.courseName}\nUnità: ${ctx.unitTitle}\n`
+      let context = `Course: ${ctx.courseName}\nUnit: ${ctx.unitTitle}\n`
       let image: string | undefined
       if (useSlide && ctx.slide) {
         const s = await ctx.slide(!!withImage)
         if (s) {
-          context += `\nSLIDE APERTA (pagina ${s.page}), testo estratto:\n"""\n${s.text.slice(0, 3500) || '(nessun testo: probabilmente solo immagini)'}\n"""\n`
+          context += `\nOPEN SLIDE (page ${s.page}), extracted text:\n"""\n${s.text.slice(0, 3500) || '(no text: probably images only)'}\n"""\n`
           if (withImage && s.image) image = s.image
         }
       }
       if (useNotes && ctx.notes) {
         const n = ctx.notes().trim()
-        if (n) context += `\nAPPUNTI DELLO STUDENTE su questa unità (estratto):\n"""\n${n.slice(-2500)}\n"""\n`
+        if (n) context += `\nSTUDENT'S NOTES on this unit (excerpt):\n"""\n${n.slice(-2500)}\n"""\n`
       }
-      const msgs: GMsg[] = [{ role: 'system', content: SYSTEM_TUTOR + '\n\nCONTESTO ATTUALE:\n' + context }]
+      const msgs: GMsg[] = [{ role: 'system', content: tutor() + '\n\nCURRENT CONTEXT:\n' + context }]
       for (const m of history.slice(-8, -1)) msgs.push({ role: m.role, content: m.content.slice(0, 2500) })
       const last: Part[] = [{ type: 'text', text: q }]
       if (image) last.push({ type: 'image_url', image_url: { url: image } })
@@ -82,7 +82,7 @@ export function AiChat({
         model: image ? settings().visionModel : undefined,
         maxTokens: 2500,
         signal: abort.current.signal,
-        onWait: (s) => setStreaming(`_Attendo il limite gratuito di Groq (${s}s)…_`),
+        onWait: (s) => setStreaming(`_Waiting for Groq’s free-plan limit (${s}s)…_`),
       })) {
         acc += d
         setStreaming(acc)
@@ -101,10 +101,10 @@ export function AiChat({
   handle.current = { ask: (t, o) => void send(t, o) }
 
   const quick = [
-    { t: 'Spiegami questa slide', p: 'Spiegami in modo semplice e completo il contenuto della slide aperta, con un esempio.' },
-    { t: 'Riassumi in appunti', p: 'Crea appunti sintetici e ben strutturati sulla slide aperta, pronti da inserire nel mio riassunto.' },
-    { t: 'Domande d’esame', p: 'Fammi 4 possibili domande d’esame su questa slide, con risposta breve sotto ciascuna (nascondila con “Risposta:”).' },
-    { t: 'Non ho capito…', p: 'Non ho capito bene questo concetto della slide, puoi spiegarmelo passo per passo con un’analogia?' },
+    { t: 'Explain this slide', p: 'Explain the content of the open slide simply and completely, with an example.' },
+    { t: 'Summarise as notes', p: 'Write concise, well-structured notes on the open slide, ready to go into my summary.' },
+    { t: 'Exam questions', p: 'Give me 4 possible exam questions on this slide, each followed by a short answer (prefixed with “Answer:”).' },
+    { t: 'I don’t get it…', p: 'I don’t really understand this concept on the slide, can you explain it step by step with an analogy?' },
   ]
 
   return (
@@ -114,13 +114,13 @@ export function AiChat({
           <Sparkles size={15} />
         </span>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold text-[14px]">Tutor AI</div>
+          <div className="font-semibold text-[14px]">AI tutor</div>
           <div className="text-[11.5px] opacity-55 truncate">Groq · {settings().model.split('/').pop()}</div>
         </div>
-        <button className="icon-btn sm" title="Svuota chat" onClick={() => confirm('Cancellare la conversazione?') && save([])}>
+        <button className="icon-btn sm" title="Clear chat" onClick={() => confirm('Delete this conversation?') && save([])}>
           <Trash2 size={14} />
         </button>
-        <button className="icon-btn sm" onClick={onClose} title="Chiudi">
+        <button className="icon-btn sm" onClick={onClose} title="Close">
           <X size={16} />
         </button>
       </div>
@@ -129,8 +129,8 @@ export function AiChat({
         {messages.length === 0 && streaming == null && (
           <div className="text-center py-6 px-3">
             <div className="text-[28px] mb-1">🎓</div>
-            <div className="font-medium">Chiedimi qualsiasi cosa</div>
-            <div className="text-[12.5px] opacity-55 mb-4">Vedo la slide aperta e i tuoi appunti.</div>
+            <div className="font-medium">Ask me anything</div>
+            <div className="text-[12.5px] opacity-55 mb-4">I can see the open slide and your notes.</div>
             <div className="flex flex-col gap-2">
               {quick.map((q) => (
                 <button key={q.t} className="quick" onClick={() => send(q.p)}>
@@ -148,21 +148,21 @@ export function AiChat({
 
       <div className="ai-foot">
         <div className="flex gap-1.5 mb-2 flex-wrap">
-          <button className={`chip ${useSlide ? 'on' : ''}`} onClick={() => setUseSlide(!useSlide)} title="Includi il testo della slide aperta">
+          <button className={`chip ${useSlide ? 'on' : ''}`} onClick={() => setUseSlide(!useSlide)} title="Include the text of the open slide">
             <Presentation size={12} /> Slide
           </button>
-          <button className={`chip ${useImage ? 'on' : ''}`} onClick={() => setUseImage(!useImage)} title="Fai vedere all’AI l’immagine della slide (grafici, schemi)">
-            <ImageIcon size={12} /> Immagine slide
+          <button className={`chip ${useImage ? 'on' : ''}`} onClick={() => setUseImage(!useImage)} title="Show the AI the slide image (charts, diagrams)">
+            <ImageIcon size={12} /> Slide image
           </button>
-          <button className={`chip ${useNotes ? 'on' : ''}`} onClick={() => setUseNotes(!useNotes)} title="Includi i tuoi appunti">
-            <NotebookPen size={12} /> Appunti
+          <button className={`chip ${useNotes ? 'on' : ''}`} onClick={() => setUseNotes(!useNotes)} title="Include your notes">
+            <NotebookPen size={12} /> Notes
           </button>
         </div>
         <div className="ai-input">
           <textarea
             rows={1}
             value={input}
-            placeholder="Chiedi una spiegazione…"
+            placeholder="Ask for an explanation…"
             onChange={(e) => {
               setInput(e.target.value)
               e.target.style.height = 'auto'
@@ -176,11 +176,11 @@ export function AiChat({
             }}
           />
           {streaming != null ? (
-            <button className="send" onClick={() => abort.current?.abort()} title="Ferma">
+            <button className="send" onClick={() => abort.current?.abort()} title="Stop">
               <Square size={14} />
             </button>
           ) : (
-            <button className="send" onClick={() => send(input)} disabled={!input.trim()} title="Invia">
+            <button className="send" onClick={() => send(input)} disabled={!input.trim()} title="Send">
               <Send size={15} />
             </button>
           )}
@@ -210,7 +210,7 @@ function Msg({ m, live, onInsert }: { m: ChatMsg; live?: boolean; onInsert?: (md
       <div className="md" ref={ref} dangerouslySetInnerHTML={{ __html: html || (live ? '<span class="typing"><i></i><i></i><i></i></span>' : '') }} />
       {!live && onInsert && (
         <button className="insert-btn" onClick={() => onInsert(m.content)}>
-          <FilePlus2 size={13} /> Inserisci negli appunti
+          <FilePlus2 size={13} /> Add to notes
         </button>
       )}
       {live && <Loader2 size={12} className="spin opacity-40 mt-1" />}

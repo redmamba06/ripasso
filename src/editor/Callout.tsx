@@ -2,13 +2,13 @@ import { Node, mergeAttributes } from '@tiptap/core'
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from '@tiptap/react'
 
 export const CALLOUTS = {
-  important: { icon: '⭐', label: 'Importante' },
-  exam: { icon: '🎯', label: 'Da sapere per l’esame' },
-  definition: { icon: '📖', label: 'Definizione' },
-  example: { icon: '💡', label: 'Esempio' },
-  warning: { icon: '⚠️', label: 'Attenzione' },
-  info: { icon: '🤖', label: 'Nota' },
-  question: { icon: '❓', label: 'Da chiarire' },
+  important: { icon: '⭐', label: 'Important' },
+  exam: { icon: '🎯', label: 'Exam must-know' },
+  definition: { icon: '📖', label: 'Definition' },
+  example: { icon: '💡', label: 'Example' },
+  warning: { icon: '⚠️', label: 'Warning' },
+  info: { icon: '🤖', label: 'Note' },
+  question: { icon: '❓', label: 'To clarify' },
 } as const
 export type CalloutVariant = keyof typeof CALLOUTS
 
@@ -26,7 +26,7 @@ function View({ node, updateAttributes, editor }: NodeViewProps) {
       <button
         className="callout-icon"
         contentEditable={false}
-        title={`${CALLOUTS[v].label} — clic per cambiare tipo`}
+        title={`${CALLOUTS[v].label} — click to change type`}
         onClick={() => editor.isEditable && updateAttributes({ variant: keys[(keys.indexOf(v) + 1) % keys.length] })}
       >
         {CALLOUTS[v].icon}

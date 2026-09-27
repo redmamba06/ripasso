@@ -15,7 +15,7 @@ export async function squareLogo(file: File): Promise<Blob> {
     const img = await new Promise<HTMLImageElement>((res, rej) => {
       const i = new Image()
       i.onload = () => res(i)
-      i.onerror = () => rej(new Error('Immagine non leggibile'))
+      i.onerror = () => rej(new Error('Could not read the image'))
       i.src = url
     })
     const side = Math.min(img.naturalWidth, img.naturalHeight)
@@ -26,7 +26,7 @@ export async function squareLogo(file: File): Promise<Blob> {
     ctx.imageSmoothingQuality = 'high'
     ctx.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size)
     const blob = await new Promise<Blob | null>((r) => c.toBlob(r, 'image/jpeg', 0.88))
-    if (!blob) throw new Error('Impossibile elaborare l’immagine')
+    if (!blob) throw new Error('Could not process the image')
     return blob
   } finally {
     URL.revokeObjectURL(url)

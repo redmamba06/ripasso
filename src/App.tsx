@@ -17,6 +17,7 @@ import UnitPage from './pages/UnitPage'
 import QuizPlayer from './pages/QuizPlayer'
 import Summary from './pages/Summary'
 import SettingsPage from './pages/Settings'
+import CalendarPage from './pages/Calendar'
 
 function useTheme() {
   const theme = useSettings((s) => s.theme)
@@ -57,7 +58,7 @@ function Shell() {
       pencilMode: () => {
         const next = useSettings.getState().pencilMode === 'ink' ? 'text' : 'ink'
         useSettings.getState().set({ pencilMode: next })
-        toast(next === 'ink' ? 'Apple Pencil: la scrittura resta a mano' : 'Apple Pencil: la scrittura diventa testo (Scribble)', 'info')
+        toast(next === 'ink' ? 'Apple Pencil: your writing stays handwritten' : 'Apple Pencil: your writing becomes text (Scribble)', 'info')
       },
     })
   }, [nav])
@@ -86,19 +87,20 @@ function Shell() {
           </>
         )}
       </AnimatePresence>
-      <main className="main">
+      <main className={`main ${sidebar ? "" : "no-sidebar"}`}>
         {!sidebar && !focusMode && (
-          <button className="menu-fab glass" onClick={() => setSidebar(true)} aria-label="Apri menu">
+          <button className="menu-fab glass" onClick={() => setSidebar(true)} aria-label="Open menu">
             <Menu size={18} />
           </button>
         )}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/c/:courseId" element={<CoursePage />} />
-          <Route path="/c/:courseId/riassunto" element={<Summary />} />
+          <Route path="/c/:courseId/summary" element={<Summary />} />
           <Route path="/u/:unitId" element={<UnitPage />} />
           <Route path="/q/:quizId" element={<QuizPlayer />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/calendar" element={<CalendarPage />} />
         </Routes>
       </main>
       <SearchPalette />

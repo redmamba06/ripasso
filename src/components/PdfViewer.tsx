@@ -206,7 +206,7 @@ export function PdfViewer({ fileId, onSnip, onTranscribe, transcribing, onReplac
   return (
     <div className="pdf-viewer">
       <div className="pdf-toolbar">
-        <button className="icon-btn sm" onClick={() => go(page - 1)} disabled={page <= 1} title="Pagina precedente (←)">
+        <button className="icon-btn sm" onClick={() => go(page - 1)} disabled={page <= 1} title="Previous page (←)">
           <ChevronLeft size={16} />
         </button>
         <div className="flex items-center gap-1 text-[13px]">
@@ -220,28 +220,28 @@ export function PdfViewer({ fileId, onSnip, onTranscribe, transcribing, onReplac
           />
           <span className="opacity-50">/ {numPages || '–'}</span>
         </div>
-        <button className="icon-btn sm" onClick={() => go(page + 1)} disabled={page >= numPages} title="Pagina successiva (→)">
+        <button className="icon-btn sm" onClick={() => go(page + 1)} disabled={page >= numPages} title="Next page (→)">
           <ChevronRight size={16} />
         </button>
         <span className="flex-1" />
-        <button className="icon-btn sm" onClick={() => setZoom((z) => Math.max(0.4, +(z - 0.15).toFixed(2)))} title="Riduci">
+        <button className="icon-btn sm" onClick={() => setZoom((z) => Math.max(0.4, +(z - 0.15).toFixed(2)))} title="Zoom out">
           <ZoomOut size={16} />
         </button>
-        <button className="icon-btn sm text-[11px] w-auto px-1.5" onClick={() => setZoom(1)} title="Adatta alla larghezza">
+        <button className="icon-btn sm text-[11px] w-auto px-1.5" onClick={() => setZoom(1)} title="Fit to width">
           {zoom === 1 ? <Maximize2 size={14} /> : Math.round(zoom * 100) + '%'}
         </button>
-        <button className="icon-btn sm" onClick={() => setZoom((z) => Math.min(3, +(z + 0.15).toFixed(2)))} title="Ingrandisci">
+        <button className="icon-btn sm" onClick={() => setZoom((z) => Math.min(3, +(z + 0.15).toFixed(2)))} title="Zoom in">
           <ZoomIn size={16} />
         </button>
         {onReplace && (
-          <button className="icon-btn sm" onClick={onReplace} title="Carica una versione aggiornata di questo PDF (es. con le annotazioni fatte a lezione): gli appunti restano">
+          <button className="icon-btn sm" onClick={onReplace} title="Upload an updated version of this PDF (e.g. with your lecture annotations): your notes are kept">
             <RefreshCw size={15} />
           </button>
         )}
         {onTranscribe && (
           <div className="relative">
-            <button className="btn btn-sm" disabled={transcribing} onClick={() => setTMenu(!tMenu)} title="Trasforma in testo gli appunti scritti a mano su questa slide">
-              {transcribing ? <Loader2 size={15} className="spin" /> : <PenLine size={15} />} <span className="hidden xl:inline">A mano → testo</span>
+            <button className="btn btn-sm" disabled={transcribing} onClick={() => setTMenu(!tMenu)} title="Turn the handwritten notes on this slide into text">
+              {transcribing ? <Loader2 size={15} className="spin" /> : <PenLine size={15} />} <span className="hidden xl:inline">Handwriting → text</span>
             </button>
             {tMenu && (
               <div className="menu glass-strong" onMouseLeave={() => setTMenu(false)}>
@@ -251,7 +251,7 @@ export function PdfViewer({ fileId, onSnip, onTranscribe, transcribing, onReplac
                     onTranscribe([page])
                   }}
                 >
-                  Trascrivi questa pagina ({page})
+                  Transcribe this page ({page})
                 </button>
                 <button
                   onClick={() => {
@@ -259,18 +259,18 @@ export function PdfViewer({ fileId, onSnip, onTranscribe, transcribing, onReplac
                     onTranscribe(Array.from({ length: numPages }, (_, i) => i + 1))
                   }}
                 >
-                  Trascrivi tutte le pagine ({numPages})
+                  Transcribe all pages ({numPages})
                 </button>
-                <div className="menu-hint">Riconosce solo ciò che hai scritto a mano (non il testo stampato) e lo inserisce negli appunti collegato alla pagina.</div>
+                <div className="menu-hint">Recognises only what you wrote by hand (not the printed text) and adds it to your notes, linked to the page.</div>
               </div>
             )}
           </div>
         )}
-        <button className={`btn btn-sm ${snipping ? 'btn-primary' : ''}`} onClick={() => useViewer.getState().setSnipping(!snipping)} title="Ritaglia una parte della slide negli appunti">
-          {snipping ? <X size={15} /> : <Crop size={15} />} <span className="hidden lg:inline">{snipping ? 'Annulla' : 'Ritaglia'}</span>
+        <button className={`btn btn-sm ${snipping ? 'btn-primary' : ''}`} onClick={() => useViewer.getState().setSnipping(!snipping)} title="Snip part of the slide into your notes">
+          {snipping ? <X size={15} /> : <Crop size={15} />} <span className="hidden lg:inline">{snipping ? 'Cancel' : 'Snip'}</span>
         </button>
       </div>
-      {snipping && <div className="snip-hint">Trascina per selezionare la parte della slide da inserire negli appunti · Esc per annullare</div>}
+      {snipping && <div className="snip-hint">Drag to select the part of the slide to add to your notes · Esc to cancel</div>}
       <div className="pdf-scroll" ref={scroller} onScroll={onScroll}>
         {err && <div className="empty m-4">{err}</div>}
         {!doc && !err && (

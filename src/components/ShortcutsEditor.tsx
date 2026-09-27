@@ -28,7 +28,7 @@ export function ShortcutsEditor() {
       // chi aveva già quella combinazione la perde
       for (const x of c) next[x.id] = ''
       set({ shortcuts: next })
-      if (c.length) toast(`Tolta da: ${c.map((x) => x.label).join(', ')}`, 'info')
+      if (c.length) toast(`Removed from: ${c.map((x) => x.label).join(', ')}`, 'info')
       setRec(null)
     }
     window.addEventListener('keydown', k, true)
@@ -45,15 +45,15 @@ export function ShortcutsEditor() {
     <div>
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <h2 className="set-title !mb-0 flex-1">
-          <Keyboard size={17} /> Scorciatoie da tastiera
+          <Keyboard size={17} /> Keyboard shortcuts
         </h2>
-        <input className="field sel-sm !w-44" placeholder="Filtra…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <button className="btn btn-sm" onClick={() => confirm('Ripristinare tutte le scorciatoie predefinite?') && set({ shortcuts: {} })}>
-          <RotateCcw size={14} /> Predefinite
+        <input className="field sel-sm !w-44" placeholder="Filter…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <button className="btn btn-sm" onClick={() => confirm('Restore all default shortcuts?') && set({ shortcuts: {} })}>
+          <RotateCcw size={14} /> Defaults
         </button>
       </div>
       <p className="text-[12.5px] opacity-60 mb-3">
-        Clicca su una combinazione e premi i tasti nuovi (Esc per annullare). Funzionano anche sull’iPad con la tastiera collegata. {prettyCombo('Mod+/')} mostra l’elenco ovunque.
+        Click a combination and press the new keys (Esc to cancel). They also work on the iPad with a keyboard attached. {prettyCombo('Mod+/')} shows the list anywhere.
       </p>
       {groups.map((g) => {
         const items = list.filter((s) => s.group === g)
@@ -70,15 +70,15 @@ export function ShortcutsEditor() {
                     {s.label}
                     {s.hint && <span className="opacity-45 text-[12px]"> · {s.hint}</span>}
                   </span>
-                  <button className={`kbd ${rec === s.id ? 'rec' : ''}`} onClick={() => setRec(rec === s.id ? null : s.id)} title="Clicca e premi la nuova combinazione">
-                    {rec === s.id ? 'Premi i tasti…' : prettyCombo(combo)}
+                  <button className={`kbd ${rec === s.id ? 'rec' : ''}`} onClick={() => setRec(rec === s.id ? null : s.id)} title="Click, then press the new combination">
+                    {rec === s.id ? 'Press keys…' : prettyCombo(combo)}
                   </button>
-                  <button className="icon-btn sm" title="Disattiva" onClick={() => set({ shortcuts: { ...overrides, [s.id]: '' } })} disabled={!combo}>
+                  <button className="icon-btn sm" title="Disable" onClick={() => set({ shortcuts: { ...overrides, [s.id]: '' } })} disabled={!combo}>
                     <X size={13} />
                   </button>
                   <button
                     className="icon-btn sm"
-                    title="Ripristina predefinita"
+                    title="Restore default"
                     disabled={!custom}
                     onClick={() => {
                       const n = { ...overrides }

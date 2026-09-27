@@ -7,7 +7,7 @@ import { buildExtensions, editorRef } from './extensions'
 import { NO_AUTOLINK } from './SlideLink'
 import { decodeRef, encodeRef, currentRef, useViewer } from '../lib/viewer'
 import { bridge } from './bridge'
-import { chat, SYSTEM_TUTOR } from '../lib/groq'
+import { chat, tutor, aiLang } from '../lib/groq'
 import { mdToHtml } from '../lib/markdown'
 import { toast } from '../components/Toast'
 import { InkLayer, type InkHandle } from '../components/InkLayer'
@@ -258,11 +258,11 @@ export function NoteEditor(p: NoteEditorProps) {
             return (
               <div key={g.pos + g.ref} className="gutter-group" style={{ top: g.top, height: Math.max(g.height, 26) }}>
                 <span className="gutter-line" />
-                <button className="gutter-chip" title="Apri la slide collegata" onClick={() => openRef(g.ref)}>
+                <button className="gutter-chip" title="Open the linked slide" onClick={() => openRef(g.ref)}>
                   {fileLabel(d.fileId)}
                   {d.page}
                 </button>
-                <button className="gutter-edit" title="Modifica collegamento" onClick={() => setEditing(g)}>
+                <button className="gutter-edit" title="Edit link" onClick={() => setEditing(g)}>
                   <Pencil size={11} />
                 </button>
               </div>
@@ -324,7 +324,7 @@ function RefEditor({ g, fileNames, onClose, onSet }: { g: Group; fileNames: Reco
       transition={{ duration: 0.16 }}
     >
       <div className="flex items-center justify-between mb-2">
-        <b className="text-[13px]">Collegamento alla slide</b>
+        <b className="text-[13px]">Slide link</b>
         <button className="icon-btn" onClick={onClose}>
           <X size={14} />
         </button>
@@ -341,16 +341,16 @@ function RefEditor({ g, fileNames, onClose, onSet }: { g: Group; fileNames: Reco
       <div className="flex gap-2 mb-2">
         <input className="field w-20" inputMode="numeric" value={page} onChange={(e) => setPage(e.target.value.replace(/\D/g, ''))} />
         <button className="btn btn-primary flex-1" onClick={() => page && onSet(encodeRef(file, parseInt(page, 10)))}>
-          Salva
+          Save
         </button>
       </div>
       {cur && cur !== g.ref && (
         <button className="btn w-full mb-2" onClick={() => onSet(cur)}>
-          <Crosshair size={14} /> Usa la slide aperta ({decodeRef(cur)?.page})
+          <Crosshair size={14} /> Use the open slide ({decodeRef(cur)?.page})
         </button>
       )}
       <button className="btn btn-danger-soft w-full" onClick={() => onSet('none')}>
-        <Link2 size={14} /> Rimuovi collegamento
+        <Link2 size={14} /> Remove link
       </button>
     </motion.div>
   )
@@ -365,20 +365,20 @@ function FormatBar({ editor }: { editor: Editor }) {
     const text = editor.state.doc.textBetween(from, to, '\n')
     if (!text.trim()) return
     if (mode === 'explain') {
-      bridge.current?.askAi?.(`Spiegami meglio questo passaggio dei miei appunti:\n\n"${text}"`)
+      bridge.current?.askAi?.(`Explain this passage of my notes better:\n\n"${text}"`)
       return
     }
     setBusy(mode)
     try {
       const instr = {
-        summarize: 'Riassumi il testo in modo più breve mantenendo tutti i concetti chiave.',
-        improve: 'Riscrivi il testo in modo più chiaro, ordinato e corretto, senza aggiungere informazioni nuove. Mantieni formule e termini tecnici.',
-        list: 'Trasforma il testo in un elenco puntato sintetico e ben strutturato.',
+        summarize: `Summarise the text more briefly, keeping all the key concepts. Write in ${aiLang()}.`,
+        improve: 'Rewrite the text so it is clearer, tidier and correct, without adding new information. Keep formulas and technical terms, and keep the original language.',
+        list: 'Turn the text into a concise, well-structured bullet list, keeping its original language.',
       }[mode]
       const out = await chat(
         [
-          { role: 'system', content: SYSTEM_TUTOR },
-          { role: 'user', content: `${instr}\nRispondi SOLO con il risultato in Markdown, senza commenti.\n\n---\n${text}` },
+          { role: 'system', content: tutor() },
+          { role: 'user', content: `${instr}\nReply ONLY with the result in Markdown, without comments.\n\n---\n${text}` },
         ],
         { maxTokens: 1800 },
       )
@@ -392,40 +392,40 @@ function FormatBar({ editor }: { editor: Editor }) {
 
   return (
     <div className="fmt-bar glass">
-      <button className={b(editor.isActive('bold'))} onClick={() => editor.chain().focus().toggleBold().run()} title="Grassetto (⌘B)">
+      <button className={b(editor.isActive('bold'))} onClick={() => editor.chain().focus().toggleBold().run()} title="Bold (⌘B)">
         <Bold size={15} />
       </button>
-      <button className={b(editor.isActive('italic'))} onClick={() => editor.chain().focus().toggleItalic().run()} title="Corsivo (⌘I)">
+      <button className={b(editor.isActive('italic'))} onClick={() => editor.chain().focus().toggleItalic().run()} title="Italic (⌘I)">
         <Italic size={15} />
       </button>
-      <button className={b(editor.isActive('underline'))} onClick={() => editor.chain().focus().toggleUnderline().run()} title="Sottolineato (⌘U)">
+      <button className={b(editor.isActive('underline'))} onClick={() => editor.chain().focus().toggleUnderline().run()} title="Underline (⌘U)">
         <Underline size={15} />
       </button>
-      <button className={b(editor.isActive('strike'))} onClick={() => editor.chain().focus().toggleStrike().run()} title="Barrato">
+      <button className={b(editor.isActive('strike'))} onClick={() => editor.chain().focus().toggleStrike().run()} title="Strikethrough">
         <Strikethrough size={15} />
       </button>
-      <button className={b(editor.isActive('code'))} onClick={() => editor.chain().focus().toggleCode().run()} title="Codice in linea">
+      <button className={b(editor.isActive('code'))} onClick={() => editor.chain().focus().toggleCode().run()} title="Inline code">
         <Code size={15} />
       </button>
       {['#fff3a3', '#c8f7d4', '#ffd3e0', '#cfe3ff'].map((c) => (
-        <button key={c} className="fmt-btn" title="Evidenzia" onClick={() => editor.chain().focus().toggleHighlight({ color: c }).run()}>
+        <button key={c} className="fmt-btn" title="Highlight" onClick={() => editor.chain().focus().toggleHighlight({ color: c }).run()}>
           <span className="w-3.5 h-3.5 rounded-full border border-black/10" style={{ background: c }} />
         </button>
       ))}
-      <button className={b(false)} onClick={() => editor.chain().focus().unsetHighlight().run()} title="Togli evidenziazione">
+      <button className={b(false)} onClick={() => editor.chain().focus().unsetHighlight().run()} title="Remove highlight">
         <Highlighter size={15} />
       </button>
       <span className="fmt-sep" />
-      <button className="fmt-btn ai" onClick={() => ai('explain')} title="Chiedi spiegazione all’AI">
-        <MessageCircleQuestion size={15} /> Spiega
+      <button className="fmt-btn ai" onClick={() => ai('explain')} title="Ask the AI to explain">
+        <MessageCircleQuestion size={15} /> Explain
       </button>
-      <button className="fmt-btn ai" onClick={() => ai('improve')} disabled={!!busy} title="Riscrivi meglio">
+      <button className="fmt-btn ai" onClick={() => ai('improve')} disabled={!!busy} title="Rewrite better">
         {busy === 'improve' ? <Sparkles size={15} className="spin" /> : <Wand2 size={15} />}
       </button>
-      <button className="fmt-btn ai" onClick={() => ai('summarize')} disabled={!!busy} title="Riassumi">
+      <button className="fmt-btn ai" onClick={() => ai('summarize')} disabled={!!busy} title="Summarise">
         {busy === 'summarize' ? <Sparkles size={15} className="spin" /> : <ListCollapse size={15} />}
       </button>
-      <button className="fmt-btn ai" onClick={() => ai('list')} disabled={!!busy} title="Trasforma in elenco">
+      <button className="fmt-btn ai" onClick={() => ai('list')} disabled={!!busy} title="Turn into a list">
         {busy === 'list' ? <Sparkles size={15} className="spin" /> : <Sparkles size={15} />}
       </button>
     </div>

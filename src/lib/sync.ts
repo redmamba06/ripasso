@@ -36,16 +36,16 @@ export function supa(): SupabaseClient | null {
 
 export async function signIn(email: string, password: string) {
   const c = supa()
-  if (!c) throw new Error('Configura prima Supabase')
+  if (!c) throw new Error('Set up the server first')
   const { error } = await c.auth.signInWithPassword({ email, password })
   if (error) throw new Error(error.message)
 }
 export async function signUp(email: string, password: string) {
   const c = supa()
-  if (!c) throw new Error('Configura prima Supabase')
+  if (!c) throw new Error('Set up the server first')
   const { data, error } = await c.auth.signUp({ email, password })
   if (error) throw new Error(error.message)
-  if (!data.session) throw new Error('Account creato: conferma l’email e poi accedi.')
+  if (!data.session) throw new Error('Account created: confirm your email, then sign in.')
 }
 export async function signOut() {
   await supa()?.auth.signOut()

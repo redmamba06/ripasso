@@ -23,8 +23,8 @@ export function buildExtensions(opts: { placeholder?: string; slash?: boolean } 
     }),
     Placeholder.configure({
       placeholder: ({ node }) => {
-        if (node.type.name === 'heading') return 'Titolo'
-        return opts.placeholder ?? 'Scrivi, oppure premi “/” per i comandi…'
+        if (node.type.name === 'heading') return 'Heading'
+        return opts.placeholder ?? 'Write, or type “/” for commands…'
       },
       includeChildren: false,
     }),

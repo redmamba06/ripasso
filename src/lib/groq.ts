@@ -76,7 +76,7 @@ async function endpoint(): Promise<{ url: string; headers: Record<string, string
   if (key) return { url: URL, headers: { Authorization: `Bearer ${key}` } }
   const c = supa()
   const token = c ? (await c.auth.getSession()).data.session?.access_token : null
-  if (!token) throw new GroqError('Per usare l’AI accedi al tuo account in Impostazioni.')
+  if (!token) throw new GroqError('Sign in to your account in Settings to use the AI.')
   const { supabaseUrl, supabaseAnon } = settings()
   return { url: `${supabaseUrl}/functions/v1/groq`, headers: { Authorization: `Bearer ${token}`, apikey: supabaseAnon } }
 }
@@ -100,20 +100,20 @@ async function doFetch(msgs: GMsg[], o: CallOpts, stream: boolean): Promise<Resp
       continue
     }
     if (!res.ok) {
-      let msg = `Errore Groq ${res.status}`
+      let msg = `Groq error ${res.status}`
       try {
         const j = await res.json()
         msg = j?.error?.message ?? msg
       } catch {
         /* */
       }
-      if (res.status === 401) msg = settings().groqKey ? 'Chiave Groq non valida: controllala in Impostazioni.' : 'Sessione scaduta: rifai l’accesso in Impostazioni.'
-      if (res.status === 413) msg = 'Richiesta troppo lunga per il piano gratuito Groq: prova con meno testo.'
+      if (res.status === 401) msg = settings().groqKey ? 'Invalid Groq key: check it in Settings.' : 'Session expired: sign in again in Settings.'
+      if (res.status === 413) msg = 'Request too long for Groq’s free plan: try with less text.'
       throw new GroqError(msg)
     }
     return res
   }
-  throw new GroqError('Groq è sovraccarico, riprova tra un minuto.')
+  throw new GroqError('Groq is overloaded, try again in a minute.')
 }
 
 /** L'AI è utilizzabile? (chiave personale oppure account abilitato) */
@@ -158,7 +158,7 @@ export function parseJSON<T>(txt: string): T {
     const a = s.indexOf('{')
     const b = s.lastIndexOf('}')
     if (a >= 0 && b > a) return JSON.parse(s.slice(a, b + 1))
-    throw new GroqError('Risposta AI non in formato JSON')
+    throw new GroqError('The AI reply was not valid JSON')
   }
 }
 
@@ -204,8 +204,12 @@ export async function* stream(msgs: GMsg[], o: CallOpts = {}): AsyncGenerator<st
   }
 }
 
-export const SYSTEM_TUTOR = `Sei "Ripasso", un tutor universitario che aiuta uno studente italiano a capire le slide dei corsi e a preparare gli esami.
-- Rispondi sempre in italiano, in modo chiaro e preciso, con esempi concreti quando utili.
-- Usa Markdown: titoletti brevi, elenchi, **grassetto** per i concetti chiave, blocchi di codice con il linguaggio indicato, formule LaTeX tra $...$ o $$...$$.
-- Se ti vengono date slide o appunti, basati su quelli; se aggiungi qualcosa che non c'è, dillo.
-- Niente preamboli o frasi di cortesia inutili.`
+/** Language the AI must answer in (Settings → AI language). */
+export const aiLang = () => (settings().aiLang === 'it' ? 'Italian' : 'English')
+
+/** System prompt of the tutor (answers in the chosen AI language). */
+export const tutor = () => `You are "Ripasso", a university tutor who helps a student understand course slides and prepare for exams.
+- Always answer in ${aiLang()}, clearly and precisely, with concrete examples when useful (the slides may be in another language: that is fine).
+- Use Markdown: short headings, bullet lists, **bold** for key concepts, code blocks with the language set, LaTeX formulas between $...$ or $$...$$.
+- When you are given slides or notes, base your answer on them; if you add something that is not there, say so.
+- No preambles or filler.`

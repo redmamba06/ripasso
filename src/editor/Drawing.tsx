@@ -182,8 +182,8 @@ function DrawingView({ node, updateAttributes, editor, selected, deleteNode, get
       const img = exportPng(strokes, height)
       const prompt =
         mode === 'latex'
-          ? 'Nell’immagine c’è una formula o un calcolo matematico scritto a mano. Trascrivilo in LaTeX. Rispondi SOLO con il codice LaTeX, senza $ e senza spiegazioni. Se ci sono più righe usa \\\\ per andare a capo.'
-          : 'Trascrivi fedelmente il testo scritto a mano nell’immagine, in italiano, in Markdown (elenchi se presenti, formule tra $...$). Rispondi SOLO con la trascrizione.'
+          ? 'The image contains a handwritten formula or calculation. Transcribe it into LaTeX. Reply ONLY with the LaTeX code, without $ and without explanations. For several lines use \\\\ as line break.'
+          : 'Faithfully transcribe the handwritten text in the image, keeping the language it is written in, in Markdown (lists if present, formulas between $...$). Reply ONLY with the transcription.'
       const out = (await chat([{ role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: img } }] }], { model: settings().visionModel, maxTokens: 1200, temperature: 0 }))
         .replace(/^```(latex|tex)?/i, '')
         .replace(/```$/, '')
@@ -194,7 +194,7 @@ function DrawingView({ node, updateAttributes, editor, selected, deleteNode, get
       const after = pos + node.nodeSize
       if (mode === 'latex') editor.chain().insertContentAt(after, { type: 'blockMath', attrs: { latex: out, slide: node.attrs.slide } }).run()
       else editor.chain().insertContentAt(after, await mdToHtml(out)).run()
-      toast(mode === 'latex' ? 'Formula inserita sotto il disegno' : 'Testo inserito sotto il disegno')
+      toast(mode === 'latex' ? 'Formula added below the drawing' : 'Text added below the drawing')
     } catch (e) {
       toast((e as Error).message, 'error')
     } finally {
@@ -224,13 +224,13 @@ function DrawingView({ node, updateAttributes, editor, selected, deleteNode, get
   const toolbar = (
     <div className="draw-tools" contentEditable={false} onPointerDown={(e) => e.stopPropagation()}>
       <div className="draw-group">
-        <button className={tool === 'pen' ? 'on' : ''} onClick={() => setTool('pen')} title="Penna">
+        <button className={tool === 'pen' ? 'on' : ''} onClick={() => setTool('pen')} title="Pen">
           <Pen size={16} />
         </button>
-        <button className={tool === 'hl' ? 'on' : ''} onClick={() => setTool('hl')} title="Evidenziatore">
+        <button className={tool === 'hl' ? 'on' : ''} onClick={() => setTool('hl')} title="Highlighter">
           <Highlighter size={16} />
         </button>
-        <button className={tool === 'eraser' ? 'on' : ''} onClick={() => setTool('eraser')} title="Gomma (cancella tratti)">
+        <button className={tool === 'eraser' ? 'on' : ''} onClick={() => setTool('eraser')} title="Eraser (removes strokes)">
           <Eraser size={16} />
         </button>
       </div>
@@ -241,7 +241,7 @@ function DrawingView({ node, updateAttributes, editor, selected, deleteNode, get
       </div>
       <div className="draw-group">
         {SIZES.map((s, i) => (
-          <button key={s} className={size === i ? 'on' : ''} onClick={() => setSize(i)} title="Spessore">
+          <button key={s} className={size === i ? 'on' : ''} onClick={() => setSize(i)} title="Thickness">
             <span className="dot" style={{ width: 3 + i * 3, height: 3 + i * 3 }} />
           </button>
         ))}
@@ -254,7 +254,7 @@ function DrawingView({ node, updateAttributes, editor, selected, deleteNode, get
             commit(strokes.slice(0, -1))
           }}
           disabled={!strokes.length}
-          title="Annulla"
+          title="Undo"
         >
           <Undo2 size={16} />
         </button>
@@ -265,28 +265,28 @@ function DrawingView({ node, updateAttributes, editor, selected, deleteNode, get
             setRedo(redo.slice(0, -1))
           }}
           disabled={!redo.length}
-          title="Ripeti"
+          title="Redo"
         >
           <Redo2 size={16} />
         </button>
-        <button onClick={() => updateAttributes({ bg: bg === 'grid' ? 'lines' : bg === 'lines' ? 'blank' : 'grid' })} title="Sfondo: quadretti / righe / bianco">
+        <button onClick={() => updateAttributes({ bg: bg === 'grid' ? 'lines' : bg === 'lines' ? 'blank' : 'grid' })} title="Background: grid / lines / blank">
           {bg === 'grid' ? <Grid3x3 size={16} /> : bg === 'lines' ? <Rows3 size={16} /> : <Square size={16} />}
         </button>
-        <button onClick={() => strokes.length && confirm('Cancellare tutto il disegno?') && commit([])} title="Svuota">
+        <button onClick={() => strokes.length && confirm('Clear the whole drawing?') && commit([])} title="Clear">
           <Trash2 size={16} />
         </button>
       </div>
       <div className="draw-group">
-        <button className="wide" onClick={() => convert('latex')} disabled={!!busy || !strokes.length} title="Riconosce la formula scritta a mano e la inserisce in LaTeX">
+        <button className="wide" onClick={() => convert('latex')} disabled={!!busy || !strokes.length} title="Recognise the handwritten formula and insert it as LaTeX">
           {busy === 'latex' ? <Loader2 size={15} className="spin" /> : <Sigma size={15} />} Formula
         </button>
-        <button className="wide" onClick={() => convert('text')} disabled={!!busy || !strokes.length} title="Trasforma la scrittura a mano in testo">
-          {busy === 'text' ? <Loader2 size={15} className="spin" /> : <Type size={15} />} Testo
+        <button className="wide" onClick={() => convert('text')} disabled={!!busy || !strokes.length} title="Turn the handwriting into text">
+          {busy === 'text' ? <Loader2 size={15} className="spin" /> : <Type size={15} />} Text
         </button>
       </div>
       <span className="flex-1" />
       <div className="draw-group">
-        <button onClick={() => setFull(!full)} title={full ? 'Riduci' : 'Schermo intero'}>
+        <button onClick={() => setFull(!full)} title={full ? 'Exit full screen' : 'Full screen'}>
           {full ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
         </button>
         <button
@@ -296,7 +296,7 @@ function DrawingView({ node, updateAttributes, editor, selected, deleteNode, get
             setFull(false)
           }}
         >
-          <Check size={15} /> Fatto
+          <Check size={15} /> Done
         </button>
       </div>
     </div>
@@ -324,16 +324,16 @@ function DrawingView({ node, updateAttributes, editor, selected, deleteNode, get
     <NodeViewWrapper className={`draw-block ${editing ? 'editing' : ''} ${selected ? 'is-selected' : ''}`} data-slide={node.attrs.slide ?? undefined}>
       {canEdit && !editing && (
         <div className="draw-hover" contentEditable={false}>
-          <span className="draw-handle" data-drag-handle title="Trascina per spostare">
+          <span className="draw-handle" data-drag-handle title="Drag to move">
             <GripVertical size={14} />
           </span>
           <button onClick={() => setEditing(true)}>
-            <PencilLine size={14} /> Disegna
+            <PencilLine size={14} /> Draw
           </button>
           <button onClick={() => { setEditing(true); setFull(true) }}>
             <Maximize2 size={14} />
           </button>
-          <button onClick={() => deleteNode()} title="Elimina disegno">
+          <button onClick={() => deleteNode()} title="Delete drawing">
             <Trash2 size={14} />
           </button>
         </div>
@@ -529,8 +529,8 @@ function Surface({
         onPointerUp={up}
         onPointerCancel={up}
       />
-      {!editing && strokes.length === 0 && <div className="draw-empty">Tocca “Disegna” o scrivi con la Apple Pencil</div>}
-      {editing && <div className="draw-resize" onPointerDown={resize} title="Trascina per cambiare l’altezza" />}
+      {!editing && strokes.length === 0 && <div className="draw-empty">Tap “Draw” or write with the Apple Pencil</div>}
+      {editing && <div className="draw-resize" onPointerDown={resize} title="Drag to change the height" />}
     </div>
   )
 }

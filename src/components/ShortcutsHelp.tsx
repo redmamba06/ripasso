@@ -18,7 +18,7 @@ export function ShortcutsHelp() {
       wide
       title={
         <span className="flex items-center gap-2">
-          <Keyboard size={18} /> Scorciatoie da tastiera
+          <Keyboard size={18} /> Keyboard shortcuts
         </span>
       }
     >
@@ -43,10 +43,10 @@ export function ShortcutsHelp() {
           className="btn"
           onClick={() => {
             close()
-            nav('/settings#scorciatoie')
+            nav('/settings#shortcuts')
           }}
         >
-          Personalizza…
+          Customise…
         </button>
       </div>
     </Modal>

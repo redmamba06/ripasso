@@ -1,4 +1,4 @@
-import { chat, chatJSON, type GMsg } from './groq'
+import { chat, chatJSON, aiLang, type GMsg } from './groq'
 import { loadPdf, pageText, pageImage } from './pdf'
 import { settings } from './settings'
 import { uid, type Question, type QType, type AnswerResult, type Attempt, type Quiz, type Unit, type WeakTopic } from './db'
@@ -16,10 +16,10 @@ export async function extractPages(fileId: string, onP: Progress, label: string)
   const doc = await loadPdf(fileId)
   const out: PageT[] = []
   for (let p = 1; p <= doc.numPages; p++) {
-    onP(`${label}: leggo pagina ${p}/${doc.numPages}`)
+    onP(`${label}: reading page ${p}/${doc.numPages}`)
     let text = await pageText(doc, p)
     if (text.replace(/\s/g, '').length < 40) {
-      onP(`${label}: pagina ${p} scansionata, la leggo con l’AI…`)
+      onP(`${label}: page ${p} is scanned, reading it with the AI…`)
       try {
         const img = await pageImage(doc, p, 1200)
         text = await chat(
@@ -29,13 +29,13 @@ export async function extractPages(fileId: string, onP: Progress, label: string)
               content: [
                 {
                   type: 'text',
-                  text: 'Trascrivi FEDELMENTE tutto il testo di questa pagina (è un esame o un quiz universitario). Mantieni numerazione, domande e opzioni (a, b, c…). Se una opzione è evidenziata, cerchiata, spuntata o marcata come corretta scrivi [CORRETTA] accanto. Non aggiungere nulla.',
+                  text: 'Transcribe ALL the text of this page FAITHFULLY, in its original language (it is a university exam or quiz). Keep numbering, questions and options (a, b, c…). If an option is highlighted, circled, ticked or marked as correct, write [CORRECT] next to it. Do not add anything.',
                 },
                 { type: 'image_url', image_url: { url: img } },
               ],
             },
           ],
-          { model: settings().visionModel, maxTokens: 2500, temperature: 0, onWait: (s) => onP(`Attendo il limite gratuito di Groq (${s}s)…`) },
+          { model: settings().visionModel, maxTokens: 2500, temperature: 0, onWait: (s) => onP(`Waiting for Groq’s free-plan limit (${s}s)…`) },
         )
       } catch (e) {
         console.warn('ocr', e)
@@ -70,20 +70,20 @@ function chunkPages(pages: PageT[], max = 6500): PageT[][] {
   return chunks
 }
 
-const render = (pages: PageT[]) => pages.map((p) => `=== PAGINA ${p.page} ===\n${p.text}`).join('\n\n')
+const render = (pages: PageT[]) => pages.map((p) => `=== PAGE ${p.page} ===\n${p.text}`).join('\n\n')
 
-const EXTRACT_RULES = `Sei un estrattore di domande d'esame. Ricevi il testo (estratto da PDF) di un esame, quiz o simulazione universitaria.
-REGOLE FONDAMENTALI:
-- Estrai SOLO le domande realmente presenti nel testo. NON inventare, NON riformulare, NON aggiungere domande.
-- Copia testo della domanda e delle opzioni in modo fedele (puoi solo sistemare a-capo e spazi spezzati dal PDF). Mantieni formule/codice.
-- "type": "single" (scelta multipla con una risposta), "multi" (più risposte corrette possibili, es. "seleziona tutte"), "truefalse" (vero/falso: options = ["Vero","Falso"]), "open" (risposta aperta, esercizio, calcolo, completamento, codice).
-- "options": solo le opzioni presenti, SENZA la lettera iniziale (es. "a) " va tolto). Per "open" usa [].
-- "correct": indici (da 0) delle opzioni corrette SOLO se il testo le indica chiaramente (es. [CORRETTA], asterisco, "Risposta: b", griglia di soluzioni). Altrimenti null.
-- "solution": testo della soluzione/svolgimento se presente nel testo, altrimenti null. Non scrivere soluzioni tue.
-- "number": numero della domanda come appare (stringa), "page": numero di pagina, "points": punteggio se indicato.
-- Se una domanda ha sotto-punti (a, b, c) di tipo aperto, puoi tenerla come un'unica domanda "open".
-- Ignora intestazioni, istruzioni generali, nome/matricola.
-Rispondi SOLO con JSON: {"questions":[{"number":"1","type":"single","text":"...","options":["..."],"correct":[1]|null,"solution":null,"points":null,"page":1}]}`
+const EXTRACT_RULES = `You extract exam questions. You receive the text (extracted from a PDF) of a university exam, quiz or mock exam.
+CORE RULES:
+- Extract ONLY the questions actually present in the text. Do NOT invent, rephrase or add questions.
+- Copy question text and options faithfully, in their ORIGINAL language (you may only fix line breaks and spacing broken by the PDF). Keep formulas/code.
+- "type": "single" (multiple choice, one answer), "multi" (several correct answers possible, e.g. "select all"), "truefalse" (true/false: options = the two options as written, e.g. ["True","False"] or ["Vero","Falso"]), "open" (open answer, exercise, calculation, fill-in, code).
+- "options": only the options present, WITHOUT the leading letter (e.g. "a) " is removed). For "open" use [].
+- "correct": indexes (from 0) of the correct options ONLY if the text clearly marks them (e.g. [CORRECT], asterisk, "Answer: b", answer grid). Otherwise null.
+- "solution": text of the solution/worked answer if present in the text, otherwise null. Never write your own solutions.
+- "number": question number as it appears (string), "page": page number, "points": score if stated.
+- If a question has open sub-parts (a, b, c) you may keep it as a single "open" question.
+- Ignore headers, general instructions, name/student ID.
+Reply ONLY with JSON: {"questions":[{"number":"1","type":"single","text":"...","options":["..."],"correct":[1]|null,"solution":null,"points":null,"page":1}]}`
 
 interface RawQ {
   number?: string | number
@@ -100,7 +100,7 @@ function normalize(r: RawQ, fileId: string): Question | null {
   if (!r.text || !String(r.text).trim()) return null
   let type = (['single', 'multi', 'truefalse', 'open'].includes(r.type ?? '') ? r.type : 'open') as QType
   let options = Array.isArray(r.options) ? r.options.map((o) => String(o).trim()).filter(Boolean) : []
-  if (type === 'truefalse' && options.length < 2) options = ['Vero', 'Falso']
+  if (type === 'truefalse' && options.length < 2) options = ['True', 'False']
   if ((type === 'single' || type === 'multi') && options.length < 2) type = 'open'
   if (type === 'open') options = []
   let correct: number[] | null = r.correct == null ? null : Array.isArray(r.correct) ? r.correct : [r.correct]
@@ -123,12 +123,12 @@ function normalize(r: RawQ, fileId: string): Question | null {
 
 export async function extractQuiz(examFileIds: string[], solutionFileIds: string[], onP: Progress): Promise<Question[]> {
   const questions: Question[] = []
-  const wait = (s: number) => onP(`Attendo il limite gratuito di Groq (${s}s)…`)
+  const wait = (s: number) => onP(`Waiting for Groq’s free-plan limit (${s}s)…`)
   for (const [fi, fid] of examFileIds.entries()) {
     const pages = await extractPages(fid, onP, `File ${fi + 1}/${examFileIds.length}`)
     const chunks = chunkPages(pages)
     for (const [ci, ch] of chunks.entries()) {
-      onP(`Estraggo le domande (parte ${ci + 1}/${chunks.length})…`, (ci + 1) / chunks.length)
+      onP(`Extracting questions (part ${ci + 1}/${chunks.length})…`, (ci + 1) / chunks.length)
       const msgs: GMsg[] = [
         { role: 'system', content: EXTRACT_RULES },
         { role: 'user', content: render(ch) },
@@ -143,10 +143,10 @@ export async function extractQuiz(examFileIds: string[], solutionFileIds: string
 
   // soluzioni in file separati
   for (const [si, sid] of solutionFileIds.entries()) {
-    const pages = await extractPages(sid, onP, `Soluzioni ${si + 1}/${solutionFileIds.length}`)
+    const pages = await extractPages(sid, onP, `Solutions ${si + 1}/${solutionFileIds.length}`)
     const chunks = chunkPages(pages, 5000)
     for (const [ci, ch] of chunks.entries()) {
-      onP(`Abbino le soluzioni (parte ${ci + 1}/${chunks.length})…`)
+      onP(`Matching solutions (part ${ci + 1}/${chunks.length})…`)
       const list = questions.map((q, i) => ({ i, n: q.number, t: q.text.slice(0, 90), o: q.options.length ? q.options.map((o) => o.slice(0, 40)) : undefined }))
       // spezza la lista se troppo lunga
       for (let k = 0; k < list.length; k += 25) {
@@ -155,12 +155,12 @@ export async function extractQuiz(examFileIds: string[], solutionFileIds: string
           [
             {
               role: 'system',
-              content: `Ricevi un elenco di domande d'esame (indice i, numero n, inizio testo t, opzioni o) e il testo di un documento di SOLUZIONI.
-Per ogni domanda la cui soluzione compare nel documento, restituisci l'indice i, gli indici (da 0) delle opzioni corrette "correct" (solo per domande con opzioni) e "solution" con il testo della soluzione/svolgimento copiato fedelmente dal documento (per le aperte).
-NON inventare: se una soluzione non c'è, non includere quella domanda.
-Rispondi SOLO JSON: {"answers":[{"i":0,"correct":[2],"solution":null}]}`,
+              content: `You receive a list of exam questions (index i, number n, start of text t, options o) and the text of a SOLUTIONS document.
+For every question whose solution appears in the document, return its index i, the indexes (from 0) of the correct options "correct" (only for questions with options) and "solution" with the solution/worked answer copied faithfully from the document (for open questions).
+Do NOT invent: if a solution is missing, leave that question out.
+Reply ONLY with JSON: {"answers":[{"i":0,"correct":[2],"solution":null}]}`,
             },
-            { role: 'user', content: `DOMANDE:\n${JSON.stringify(part)}\n\nSOLUZIONI:\n${render(ch)}` },
+            { role: 'user', content: `QUESTIONS:\n${JSON.stringify(part)}\n\nSOLUTIONS:\n${render(ch)}` },
           ],
           { maxTokens: 3000, temperature: 0, onWait: wait },
         )
@@ -199,20 +199,20 @@ const qText = (q: Question) => `${q.text}${q.options.length ? '\n' + q.options.m
 export async function explainChoice(q: Question, given: number[], courseName: string): Promise<{ text: string; aiCorrect?: number[] }> {
   const known = q.correct
   const prompt = known
-    ? `Domanda d'esame del corso "${courseName}":\n${qText(q)}\n\nRisposta corretta (dal PDF): ${known.map(letter).join(', ')}\nRisposta dello studente: ${given.length ? given.map(letter).join(', ') : 'nessuna'}\n\nSpiega in modo breve e chiaro PERCHÉ la risposta corretta è quella${given.length && gradeChoice(q, given) === false ? " e perché quella scelta dallo studente è sbagliata" : ''}. Max 120 parole, Markdown.`
-    : `Domanda d'esame del corso "${courseName}" (il PDF non contiene la soluzione):\n${qText(q)}\n\nRisposta dello studente: ${given.length ? given.map(letter).join(', ') : 'nessuna'}\n\nIndica quale opzione è corretta e spiega perché in max 120 parole (Markdown). Nella PRIMA riga scrivi solo: RISPOSTA: <lettere separate da virgola>`
+    ? `Exam question from the course "${courseName}":\n${qText(q)}\n\nCorrect answer (from the PDF): ${known.map(letter).join(', ')}\nStudent's answer: ${given.length ? given.map(letter).join(', ') : 'none'}\n\nExplain briefly and clearly WHY that is the correct answer${given.length && gradeChoice(q, given) === false ? " and why the student's choice is wrong" : ''}. Max 120 words, Markdown, in ${aiLang()}.`
+    : `Exam question from the course "${courseName}" (the PDF does not contain the solution):\n${qText(q)}\n\nStudent's answer: ${given.length ? given.map(letter).join(', ') : 'none'}\n\nSay which option is correct and explain why in max 120 words (Markdown, in ${aiLang()}). On the FIRST line write only: ANSWER: <letters separated by commas>`
   const out = await chat([{ role: 'user', content: prompt }], { maxTokens: 1500, temperature: 0.2, reasoning: 'medium' })
   if (known) return { text: out }
-  const m = out.match(/RISPOSTA:\s*([a-z ,]+)/i)
+  const m = out.match(/(?:ANSWER|RISPOSTA):\s*([a-z ,]+)/i)
   const aiCorrect = m ? m[1].split(/[ ,]+/).filter(Boolean).map((l) => l.toLowerCase().charCodeAt(0) - 97).filter((n) => n >= 0 && n < q.options.length) : undefined
-  return { text: out.replace(/^.*RISPOSTA:.*\n?/i, '').trim(), aiCorrect }
+  return { text: out.replace(/^.*(?:ANSWER|RISPOSTA):.*\n?/i, '').trim(), aiCorrect }
 }
 
 /** Valuta una risposta aperta confrontandola con la soluzione del PDF (se c'è). */
 export async function gradeOpen(q: Question, answer: string, courseName: string): Promise<AnswerResult> {
-  const sys = `Sei un docente che corregge un esame universitario del corso "${courseName}". Correggi in modo onesto ma costruttivo, in italiano.
-Rispondi SOLO JSON: {"score": numero da 0 a 1, "verdict": "corretta"|"parziale"|"errata", "feedback": "Markdown: cosa va bene, cosa manca o è sbagliato, e la risposta corretta spiegata in breve"}`
-  const user = `DOMANDA:\n${q.text}\n\n${q.solution ? `SOLUZIONE UFFICIALE (dal PDF):\n${q.solution}\n\n` : 'La soluzione ufficiale NON è disponibile: valuta con le tue conoscenze e dillo nel feedback.\n\n'}RISPOSTA DELLO STUDENTE:\n${answer || '(vuota)'}`
+  const sys = `You are a professor grading a university exam of the course "${courseName}". Grade honestly but constructively. Write the feedback in ${aiLang()}.
+Reply ONLY with JSON: {"score": number from 0 to 1, "verdict": "correct"|"partial"|"wrong", "feedback": "Markdown: what is good, what is missing or wrong, and the correct answer briefly explained"}`
+  const user = `QUESTION:\n${q.text}\n\n${q.solution ? `OFFICIAL SOLUTION (from the PDF):\n${q.solution}\n\n` : 'The official solution is NOT available: grade using your own knowledge and say so in the feedback.\n\n'}STUDENT'S ANSWER:\n${answer || '(empty)'}`
   const j = await chatJSON<{ score: number; verdict: string; feedback: string }>(
     [
       { role: 'system', content: sys },
@@ -249,14 +249,14 @@ export async function analyzeWeak(courseName: string, units: Unit[], quizzes: Qu
     [
       {
         role: 'system',
-        content: `Analizzi gli errori di uno studente nelle simulazioni d'esame del corso "${courseName}".
-Raggruppa le domande sbagliate in 2-6 argomenti deboli, ordinati per importanza (numero di errori).
-Per ogni argomento indica quali unità del corso ripassare (usa ESATTAMENTE i titoli forniti, solo se pertinenti) e un consiglio pratico breve (max 25 parole).
-Rispondi SOLO JSON: {"topics":[{"topic":"...","errors":3,"units":["titolo unità"],"tip":"..."}]}`,
+        content: `You analyse a student's mistakes in the mock exams of the course "${courseName}".
+Group the wrong questions into 2-6 weak topics, ordered by importance (number of mistakes).
+For each topic say which course units to revise (use EXACTLY the titles given, only if relevant) and a short practical tip (max 25 words). Write topics and tips in ${aiLang()}.
+Reply ONLY with JSON: {"topics":[{"topic":"...","errors":3,"units":["unit title"],"tip":"..."}]}`,
       },
       {
         role: 'user',
-        content: `UNITÀ DEL CORSO:\n${units.map((u) => '- ' + u.title).join('\n')}\n\nDOMANDE SBAGLIATE (con numero di volte):\n${list.map((w) => `(${w.n}x) ${w.text}`).join('\n')}`,
+        content: `COURSE UNITS:\n${units.map((u) => '- ' + u.title).join('\n')}\n\nWRONG QUESTIONS (with number of times):\n${list.map((w) => `(${w.n}x) ${w.text}`).join('\n')}`,
       },
     ],
     { maxTokens: 2000, temperature: 0.2 },

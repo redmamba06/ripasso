@@ -9,16 +9,16 @@ export function PencilModeToggle({ compact }: { compact?: boolean }) {
   const flip = () => {
     const next = mode === 'ink' ? 'text' : 'ink'
     set({ pencilMode: next })
-    toast(next === 'ink' ? 'Apple Pencil: la scrittura resta a mano' : 'Apple Pencil: la scrittura diventa testo (Scribble)', 'info')
+    toast(next === 'ink' ? 'Apple Pencil: your writing stays handwritten' : 'Apple Pencil: your writing becomes text (Scribble)', 'info')
   }
   return (
     <button
       className={`btn btn-sm ${compact ? '' : 'pencil-mode'}`}
       onClick={flip}
-      title={mode === 'ink' ? 'Apple Pencil: la scrittura resta a mano. Clic per convertire in testo (Scribble)' : 'Apple Pencil: la scrittura viene convertita in testo. Clic per lasciarla a mano'}
+      title={mode === 'ink' ? 'Apple Pencil: writing stays handwritten. Click to convert to text (Scribble)' : 'Apple Pencil: writing is converted to text. Click to keep it handwritten'}
     >
       {mode === 'ink' ? <PenLine size={15} /> : <CaseSensitive size={16} />}
-      <span className={compact ? '' : 'hidden xl:inline'}>{mode === 'ink' ? 'Pencil: a mano' : 'Pencil: testo'}</span>
+      <span className={compact ? '' : 'hidden xl:inline'}>{mode === 'ink' ? 'Pencil: ink' : 'Pencil: text'}</span>
     </button>
   )
 }

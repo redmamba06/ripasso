@@ -30,6 +30,10 @@ export interface Course extends Base {
   exam?: ExamInfo
   plan?: { studyDays: number[]; reviewDays: number }
   weak?: { at: number; topics: WeakTopic[] }
+  /** weekly timetable (lectures, exercises…) */
+  schedule?: import('./ics').ClassSession[]
+  /** teaching period: classes repeat weekly between these dates */
+  term?: { start?: string; end?: string }
 }
 
 export interface WeakTopic {

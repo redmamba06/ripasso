@@ -15,7 +15,7 @@ export async function loadPdf(fileId: string): Promise<PDFDocumentProxy> {
   if (!cache.has(key)) {
     const p = (async () => {
       const blob = await getBlob(fileId)
-      if (!blob) throw new Error('File non disponibile su questo dispositivo (accedi per scaricarlo dal cloud).')
+      if (!blob) throw new Error('File not available on this device (sign in to download it from the cloud).')
       const data = new Uint8Array(await blob.arrayBuffer())
       return pdfjs.getDocument({ data }).promise
     })()

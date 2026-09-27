@@ -5,8 +5,8 @@ import { UploadCloud } from 'lucide-react'
 export function Dropzone({
   onFiles,
   accept = 'application/pdf,image/*,.pdf',
-  title = 'Trascina qui i PDF',
-  hint = 'oppure clicca per sceglierli · puoi caricarne quanti vuoi',
+  title = 'Drop PDFs here',
+  hint = 'or click to choose them · upload as many as you like',
   compact,
 }: {
   onFiles: (f: File[]) => void

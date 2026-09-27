@@ -33,7 +33,7 @@ export default function Summary() {
   }, [courseId])
 
   useEffect(() => {
-    if (data?.course) document.title = `Riassunto — ${data.course.name}`
+    if (data?.course) document.title = `Summary — ${data.course.name}`
     return () => {
       document.title = 'Ripasso'
     }
@@ -47,11 +47,11 @@ export default function Summary() {
   const exportMd = () => {
     let md = `# ${course.name}\n\n`
     if (course.professor) md += `*${course.professor}*\n\n`
-    md += `## Indice\n\n` + filled.map((u, i) => `${i + 1}. ${u.title}`).join('\n') + '\n\n'
+    md += `## Contents\n\n` + filled.map((u, i) => `${i + 1}. ${u.title}`).join('\n') + '\n\n'
     filled.forEach((u, i) => {
       md += `\n---\n\n# ${i + 1}. ${u.title}\n\n${docToMarkdown(noteOf(u)?.doc)}\n`
     })
-    download(`Riassunto ${course.name}.md`, md)
+    download(`Summary ${course.name}.md`, md)
   }
 
   const headings = (doc: JSONContent | null | undefined) =>
@@ -65,23 +65,23 @@ export default function Summary() {
   return (
     <div className="summary-page">
       <div className="summary-bar no-print">
-        <button className="btn btn-ghost" onClick={() => nav(`/c/${course.id}?tab=riassunto`)}>
+        <button className="btn btn-ghost" onClick={() => nav(`/c/${course.id}?tab=summary`)}>
           <ArrowLeft size={16} /> <span className="hidden sm:inline">{course.name}</span>
         </button>
         <span className="flex-1" />
         <button className="btn lg:hidden" onClick={() => setToc(!toc)}>
-          <List size={15} /> Indice
+          <List size={15} /> Contents
         </button>
         <button className="btn" onClick={exportMd}>
           <FileDown size={15} /> <span className="hidden sm:inline">Markdown</span>
         </button>
         <button className="btn btn-primary" onClick={() => window.print()}>
-          <Printer size={15} /> <span className="hidden sm:inline">Esporta PDF</span>
+          <Printer size={15} /> <span className="hidden sm:inline">Export PDF</span>
         </button>
       </div>
       <div className="summary-layout">
         <nav className={`summary-toc no-print ${toc ? 'open' : ''}`}>
-          <div className="label">Indice</div>
+          <div className="label">Contents</div>
           {filled.map((u, i) => (
             <div key={u.id}>
               <button className="toc-item" onClick={() => scrollTo('u-' + u.id)}>
@@ -100,16 +100,16 @@ export default function Summary() {
             <div className="summary-logo"><CourseIcon course={course} /></div>
             <h1>{course.name}</h1>
             <p>
-              Riassunto completo · {filled.length} unità{course.professor ? ` · ${course.professor}` : ''}
+              Full summary · {filled.length} unit{filled.length === 1 ? '' : 's'}{course.professor ? ` · ${course.professor}` : ''}
             </p>
           </header>
-          {filled.length === 0 && <div className="empty">Nessun appunto ancora: scrivi nelle unità e il riassunto si comporrà qui da solo.</div>}
+          {filled.length === 0 && <div className="empty">No notes yet: write in your units and the summary will build itself here.</div>}
           {filled.map((u, i) => (
             <motion.section key={u.id} id={'u-' + u.id} className="summary-unit" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}>
               <div className="summary-unit-head">
                 <span className="unit-num big">{i + 1}</span>
                 <h2 className="flex-1">{u.title}</h2>
-                <button className="icon-btn sm no-print" title="Apri unità" onClick={() => nav(`/u/${u.id}`)}>
+                <button className="icon-btn sm no-print" title="Open unit" onClick={() => nav(`/u/${u.id}`)}>
                   <ExternalLink size={14} />
                 </button>
               </div>

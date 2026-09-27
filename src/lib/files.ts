@@ -38,7 +38,7 @@ export async function newUnit(courseId: string, title: string, mainFileId: strin
 export async function addFiles(list: File[], o: AddOpts): Promise<{ files: FileRec[]; units: Unit[] }> {
   const out: FileRec[] = []
   const units: Unit[] = []
-  const sorted = [...list].sort((a, b) => a.name.localeCompare(b.name, 'it', { numeric: true }))
+  const sorted = [...list].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
   for (const f of sorted) {
     const id = uid()
     const mime = f.type || (isPdf(f) ? 'application/pdf' : 'application/octet-stream')

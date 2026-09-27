@@ -44,26 +44,26 @@ export default function QuizPlayer() {
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl font-bold tracking-tight truncate">{quiz.title}</h1>
               <div className="opacity-60 text-[14px]">
-                {qs.length} domande · {qs.filter((q) => q.type !== 'open').length} a scelta · {qs.filter((q) => q.type === 'open').length} aperte
+                {qs.length} questions · {qs.filter((q) => q.type !== 'open').length} multiple choice · {qs.filter((q) => q.type === 'open').length} open
               </div>
             </div>
-            <button className="icon-btn" title="Controlla e correggi le domande estratte" onClick={() => setEditing(true)}>
+            <button className="icon-btn" title="Review and fix the extracted questions" onClick={() => setEditing(true)}>
               <Pencil size={16} />
             </button>
           </div>
           <p className="text-[13.5px] opacity-65 mt-3">
-            {qs.filter((q) => q.solutionFromPdf).length} domande hanno la soluzione presa dal PDF. Per le altre la correzione e la spiegazione sono fatte dall’AI (te lo segnalo).
+            {qs.filter((q) => q.solutionFromPdf).length} questions have their solution from the PDF. For the others, grading and explanations come from the AI (you’ll be told).
           </p>
           <div className="grid sm:grid-cols-2 gap-3 mt-6">
             <button className="mode-card" onClick={() => start('now')}>
               <Check size={20} />
-              <b>Correggi domanda per domanda</b>
-              <span>Vedi subito se è giusta e perché</span>
+              <b>Check question by question</b>
+              <span>See right away if it’s correct and why</span>
             </button>
             <button className="mode-card" onClick={() => start('end')}>
               <Trophy size={20} />
-              <b>Simulazione d’esame</b>
-              <span>Rispondi a tutto, correzione alla fine</span>
+              <b>Mock exam</b>
+              <span>Answer everything, graded at the end</span>
             </button>
           </div>
           <PastAttempts quiz={quiz} />
@@ -80,11 +80,11 @@ function PastAttempts({ quiz }: { quiz: Quiz }) {
   if (!list.length) return null
   return (
     <div className="mt-6">
-      <div className="label">Tentativi precedenti</div>
+      <div className="label">Previous attempts</div>
       <div className="flex flex-col gap-1.5">
         {list.slice(0, 6).map((a) => (
           <div key={a.id} className="flex items-center gap-3 text-[13.5px]">
-            <span className="opacity-60 w-32">{new Date(a.finishedAt!).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+            <span className="opacity-60 w-32">{new Date(a.finishedAt!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
             <div className="progress flex-1">
               <span style={{ width: `${(a.score / Math.max(1, a.total)) * 100}%` }} />
             </div>
@@ -177,7 +177,7 @@ function Runner({
 
   const finish = async () => {
     let a = mode === 'end' ? store() : attempt
-    setFinishing('Correggo…')
+    setFinishing('Grading…')
     try {
       // valuta le aperte non ancora corrette + scelte senza soluzione nota
       let k = 0
@@ -186,11 +186,11 @@ function Runner({
         const r = a.answers[qq.id]
         if (!r || r.feedback) continue
         if (qq.type === 'open' && typeof r.given === 'string' && r.given.trim()) {
-          setFinishing(`Correggo la domanda aperta ${k}/${qs.length}…`)
+          setFinishing(`Grading open question ${k}/${qs.length}…`)
           const g = await gradeOpen(qq, r.given, courseName)
           a = { ...a, answers: { ...a.answers, [qq.id]: g } }
         } else if (qq.type !== 'open' && Array.isArray(r.given) && (r.correct === false || r.correct == null)) {
-          setFinishing(`Preparo la spiegazione ${k}/${qs.length}…`)
+          setFinishing(`Preparing explanation ${k}/${qs.length}…`)
           const ex = await explainChoice(qq, r.given, courseName)
           const ok = r.correct ?? (ex.aiCorrect ? gradeChoice({ ...qq, correct: ex.aiCorrect }, r.given) : null)
           a = { ...a, answers: { ...a.answers, [qq.id]: { ...r, correct: ok, feedback: ex.text, aiCorrect: qq.correct ? undefined : ex.aiCorrect } } }
@@ -198,7 +198,7 @@ function Runner({
         setAttempt(a)
       }
     } catch (e) {
-      toast((e as Error).message + ' — alcune correzioni mancano', 'error')
+      toast((e as Error).message + ' — some corrections are missing', 'error')
     }
     const score = qs.reduce((s, qq) => {
       const r = a.answers[qq.id]
@@ -231,7 +231,7 @@ function Runner({
   return (
     <div className="quiz-page">
       <div className="quiz-top">
-        <button className="icon-btn" onClick={() => (done ? setReview(false) : confirm('Uscire dal quiz? Le risposte non corrette andranno perse.') && onExit())}>
+        <button className="icon-btn" onClick={() => (done ? setReview(false) : confirm('Leave the quiz? Answers that were not graded will be lost.') && onExit())}>
           <X size={18} />
         </button>
         <div className="flex-1">
@@ -248,19 +248,19 @@ function Runner({
         {qs.map((qq, k) => {
           const r = attempt.answers[qq.id]
           const cls = r?.feedback || done ? (r?.correct ? 'ok' : r?.correct === false ? 'ko' : r ? 'ans' : '') : r ? 'ans' : ''
-          return <button key={qq.id} className={`qdot ${cls} ${k === i ? 'cur' : ''}`} onClick={() => { if (!done) store(); setI(k) }} title={`Domanda ${k + 1}`} />
+          return <button key={qq.id} className={`qdot ${cls} ${k === i ? 'cur' : ''}`} onClick={() => { if (!done) store(); setI(k) }} title={`Question ${k + 1}`} />
         })}
       </div>
 
       <AnimatePresence mode="wait">
         <motion.div key={q.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.18 }} className="quiz-card card">
           <div className="flex items-center gap-2 text-[12px] mb-3 flex-wrap">
-            <span className="pill">{q.number ? `Domanda ${q.number}` : `Domanda ${i + 1}`}</span>
-            <span className="pill soft">{q.type === 'open' ? 'Aperta' : q.type === 'multi' ? 'Risposta multipla' : q.type === 'truefalse' ? 'Vero / Falso' : 'Scelta singola'}</span>
+            <span className="pill">{q.number ? `Question ${q.number}` : `Question ${i + 1}`}</span>
+            <span className="pill soft">{q.type === 'open' ? 'Open' : q.type === 'multi' ? 'Multiple answers' : q.type === 'truefalse' ? 'True / False' : 'Single choice'}</span>
             {q.points && <span className="pill soft">{q.points} pt</span>}
             {q.page && (
               <span className="opacity-50 flex items-center gap-1">
-                <FileText size={12} /> pag. {q.page}
+                <FileText size={12} /> p. {q.page}
               </span>
             )}
           </div>
@@ -289,7 +289,7 @@ function Runner({
               })}
             </div>
           ) : (
-            <textarea className="field mt-5 min-h-[160px] font-[inherit]" placeholder="Scrivi la tua risposta…" value={text} disabled={showResult} onChange={(e) => setText(e.target.value)} />
+            <textarea className="field mt-5 min-h-[160px] font-[inherit]" placeholder="Write your answer…" value={text} disabled={showResult} onChange={(e) => setText(e.target.value)} />
           )}
 
           {showResult && res && <Feedback q={q} r={res} aiCorrect={!q.correct && q.type !== 'open' ? aiCorrect : undefined} />}
@@ -298,25 +298,25 @@ function Runner({
 
       <div className="quiz-nav">
         <button className="btn" onClick={prev} disabled={i === 0}>
-          <ArrowLeft size={16} /> <span className="hidden sm:inline">Indietro</span>
+          <ArrowLeft size={16} /> <span className="hidden sm:inline">Back</span>
         </button>
         <span className="flex-1" />
         {mode === 'now' && !showResult && !done && (
           <button className="btn btn-primary" onClick={check} disabled={busy || (q.type === 'open' ? !text.trim() : !sel.length)}>
-            {busy ? <Loader2 size={16} className="spin" /> : <Sparkles size={16} />} Correggi
+            {busy ? <Loader2 size={16} className="spin" /> : <Sparkles size={16} />} Check
           </button>
         )}
         {i < qs.length - 1 ? (
           <button className={`btn ${mode === 'end' || showResult || done ? 'btn-primary' : ''}`} onClick={next}>
-            <span className="hidden sm:inline">Avanti</span> <ArrowRight size={16} />
+            <span className="hidden sm:inline">Next</span> <ArrowRight size={16} />
           </button>
         ) : done ? (
           <button className="btn btn-primary" onClick={() => setReview(false)}>
-            Risultati
+            Results
           </button>
         ) : (
-          <button className="btn btn-primary" onClick={() => (mode === 'end' && answered + (sel.length || text.trim() ? 1 : 0) < qs.length ? confirm('Ci sono domande senza risposta. Consegnare comunque?') && finish() : finish())}>
-            <Trophy size={16} /> Consegna
+          <button className="btn btn-primary" onClick={() => (mode === 'end' && answered + (sel.length || text.trim() ? 1 : 0) < qs.length ? confirm('Some questions are unanswered. Submit anyway?') && finish() : finish())}>
+            <Trophy size={16} /> Submit
           </button>
         )}
       </div>
@@ -337,12 +337,12 @@ function Feedback({ q, r, aiCorrect }: { q: Question; r: AnswerResult; aiCorrect
   const sc = r.score ?? 0
   const state: 'ok' | 'partial' | 'ko' | 'unk' = open ? (sc >= 0.85 ? 'ok' : sc >= 0.3 ? 'partial' : 'ko') : r.correct ? 'ok' : r.correct === false ? 'ko' : 'unk'
   const label = open
-    ? `${state === 'ok' ? 'Corretta' : state === 'partial' ? 'Parzialmente corretta' : 'Da rivedere'} · ${Math.round(sc * 100)}%`
+    ? `${state === 'ok' ? 'Correct' : state === 'partial' ? 'Partially correct' : 'Needs work'} · ${Math.round(sc * 100)}%`
     : state === 'ok'
-      ? 'Corretta!'
+      ? 'Correct!'
       : state === 'ko'
-        ? 'Sbagliata'
-        : 'Risposta registrata'
+        ? 'Wrong'
+        : 'Answer saved'
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`feedback ${state}`}>
       <div className="flex items-center gap-2 font-semibold mb-2">
@@ -350,12 +350,12 @@ function Feedback({ q, r, aiCorrect }: { q: Question; r: AnswerResult; aiCorrect
         {label}
       </div>
       {!q.solutionFromPdf && (
-        <div className="text-[12px] opacity-70 mb-2">⚠️ Il PDF non contiene la soluzione: {aiCorrect ? 'la risposta indicata come corretta è stata stabilita dall’AI' : 'la valutazione è dell’AI'}, verificala.</div>
+        <div className="text-[12px] opacity-70 mb-2">⚠️ The PDF has no solution for this: {aiCorrect ? 'the answer marked as correct was determined by the AI' : 'the grading comes from the AI'}, double-check it.</div>
       )}
       {q.type === 'open' && q.solution && (
         <details className="mb-2">
           <summary className="cursor-pointer text-[13px] font-medium flex items-center gap-1">
-            <Eye size={13} /> Soluzione ufficiale (dal PDF)
+            <Eye size={13} /> Official solution (from the PDF)
           </summary>
           <div className="mt-2 text-[13.5px] whitespace-pre-wrap opacity-85">{q.solution}</div>
         </details>
@@ -375,22 +375,22 @@ function Results({ quiz, attempt, onReview, onRestart }: { quiz: Quiz; attempt: 
         <div className="result-ring" style={{ ['--p' as string]: pct }}>
           <span>{pct}%</span>
         </div>
-        <h1 className="text-2xl font-bold mt-4">{pct >= 85 ? 'Ottimo lavoro! 🎉' : pct >= 60 ? 'Ci sei quasi 💪' : 'Continua a ripassare 📚'}</h1>
+        <h1 className="text-2xl font-bold mt-4">{pct >= 85 ? 'Great job! 🎉' : pct >= 60 ? 'Almost there 💪' : 'Keep revising 📚'}</h1>
         <p className="opacity-65 mt-1">
-          {attempt.score} su {attempt.total} punti · {quiz.title}
+          {attempt.score} of {attempt.total} points · {quiz.title}
         </p>
         <div className="flex justify-center gap-2 mt-5 flex-wrap">
           <button className="btn" onClick={() => nav(`/c/${quiz.courseId}?tab=quiz`)}>
-            <ArrowLeft size={16} /> Torna ai quiz
+            <ArrowLeft size={16} /> Back to quizzes
           </button>
           <button className="btn btn-primary" onClick={onRestart}>
-            <RotateCcw size={16} /> Rifai
+            <RotateCcw size={16} /> Retake
           </button>
         </div>
       </motion.div>
       {wrong.length > 0 && (
         <div className="mt-6">
-          <h2 className="section-title">Da rivedere ({wrong.length})</h2>
+          <h2 className="section-title">To review ({wrong.length})</h2>
           <div className="flex flex-col gap-2">
             {wrong.map(({ q, i, r }) => (
               <button key={q.id} className="card card-hover text-left flex items-center gap-3" onClick={() => onReview(i)}>
@@ -399,7 +399,7 @@ function Results({ quiz, attempt, onReview, onRestart }: { quiz: Quiz; attempt: 
                   <span className="block truncate text-[14px]">
                     {i + 1}. {q.text}
                   </span>
-                  <span className="text-[12px] opacity-55">{r ? (q.type === 'open' ? `${Math.round((r.score ?? 0) * 100)}%` : 'Risposta errata') : 'Senza risposta'} · vedi spiegazione</span>
+                  <span className="text-[12px] opacity-55">{r ? (q.type === 'open' ? `${Math.round((r.score ?? 0) * 100)}%` : 'Wrong answer') : 'Unanswered'} · see explanation</span>
                 </span>
                 <ArrowRight size={16} className="opacity-40" />
               </button>
@@ -424,12 +424,12 @@ function QuizEditor({ open, onClose, quiz }: { open: boolean; onClose: () => voi
   const upd = (id: string, p: Partial<Question>) => setQs((l) => l.map((q) => (q.id === id ? { ...q, ...p } : q)))
   const save = async () => {
     await put<Quiz>('quizzes', { ...quiz, title, questions: qs })
-    toast('Quiz aggiornato')
+    toast('Quiz updated')
     onClose()
   }
   const count = useMemo(() => qs.length, [qs])
   return (
-    <Modal open={open} onClose={onClose} title={`Controlla le domande (${count})`} wide>
+    <Modal open={open} onClose={onClose} title={`Review questions (${count})`} wide>
       <input className="field mb-3" value={title} onChange={(e) => setTitle(e.target.value)} />
       <div className="max-h-[60vh] overflow-y-auto flex flex-col gap-3 pr-1">
         {qs.map((q, n) => (
@@ -437,10 +437,10 @@ function QuizEditor({ open, onClose, quiz }: { open: boolean; onClose: () => voi
             <div className="flex gap-2 mb-2 items-center">
               <b className="text-[13px]">#{n + 1}</b>
               <select className="field sel-sm" value={q.type} onChange={(e) => upd(q.id, { type: e.target.value as Question['type'], options: e.target.value === 'open' ? [] : q.options.length ? q.options : ['', ''] })}>
-                <option value="single">Scelta singola</option>
-                <option value="multi">Risposta multipla</option>
-                <option value="truefalse">Vero/Falso</option>
-                <option value="open">Aperta</option>
+                <option value="single">Single choice</option>
+                <option value="multi">Multiple answers</option>
+                <option value="truefalse">True/False</option>
+                <option value="open">Open</option>
               </select>
               <span className="flex-1" />
               <button className="icon-btn sm danger" onClick={() => setQs((l) => l.filter((x) => x.id !== q.id))}>
@@ -456,7 +456,7 @@ function QuizEditor({ open, onClose, quiz }: { open: boolean; onClose: () => voi
                       type={q.type === 'multi' ? 'checkbox' : 'radio'}
                       name={q.id}
                       checked={!!q.correct?.includes(k)}
-                      title="Risposta corretta"
+                      title="Correct answer"
                       onChange={(e) =>
                         upd(q.id, {
                           correct: q.type === 'multi' ? (e.target.checked ? [...(q.correct ?? []), k] : (q.correct ?? []).filter((x) => x !== k)) : [k],
@@ -470,17 +470,17 @@ function QuizEditor({ open, onClose, quiz }: { open: boolean; onClose: () => voi
               </div>
             )}
             {q.type === 'open' && (
-              <textarea className="field text-[13px] mt-2" rows={2} placeholder="Soluzione (facoltativa)" value={q.solution ?? ''} onChange={(e) => upd(q.id, { solution: e.target.value || null, solutionFromPdf: !!e.target.value })} />
+              <textarea className="field text-[13px] mt-2" rows={2} placeholder="Solution (optional)" value={q.solution ?? ''} onChange={(e) => upd(q.id, { solution: e.target.value || null, solutionFromPdf: !!e.target.value })} />
             )}
           </div>
         ))}
       </div>
       <div className="flex justify-end gap-2 mt-4">
         <button className="btn" onClick={onClose}>
-          Annulla
+          Cancel
         </button>
         <button className="btn btn-primary" onClick={save}>
-          <Save size={15} /> Salva
+          <Save size={15} /> Save
         </button>
       </div>
     </Modal>

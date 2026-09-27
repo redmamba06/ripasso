@@ -12,9 +12,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Ripasso — appunti e esami',
+        name: 'Ripasso — notes & exams',
         short_name: 'Ripasso',
-        description: 'Appunti sulle slide, riassunti di corso e preparazione esami con AI',
+        description: 'Notes on your slides, course summaries and exam prep with AI',
         theme_color: '#6d5efc',
         background_color: '#0f0f17',
         display: 'standalone',

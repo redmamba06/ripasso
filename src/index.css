@@ -2100,7 +2100,7 @@ kbd {
   font-weight: 700;
 }
 .term-prompt::before {
-  content: 'studente@linux:~';
+  content: 'student@linux:~';
   color: #8be9fd;
   font-weight: 700;
 }
@@ -3013,4 +3013,206 @@ kbd {
 }
 .brand:active {
   transform: scale(0.97);
+}
+
+/* ---------- calendario ---------- */
+@layer components {
+  .week-grid {
+    overflow-x: auto;
+    border-radius: 12px;
+  }
+  .wg-inner {
+    display: grid;
+    min-width: 100%;
+  }
+  .wg-corner {
+    position: sticky;
+    left: 0;
+    background: var(--surface);
+    z-index: 3;
+  }
+  .wg-head {
+    text-align: center;
+    padding: 6px 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.7;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+  }
+  .wg-head b {
+    font-size: 18px;
+    letter-spacing: 0;
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    border-radius: 50%;
+  }
+  .wg-head.today {
+    opacity: 1;
+    color: var(--accent);
+  }
+  .wg-head.today b {
+    background: var(--accent);
+    color: #fff;
+  }
+  .wg-allday-label {
+    font-size: 10px;
+    opacity: 0.5;
+    text-align: right;
+    padding: 4px 6px 4px 0;
+    position: sticky;
+    left: 0;
+    background: var(--surface);
+    z-index: 3;
+  }
+  .wg-allday {
+    padding: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-left: 1px solid var(--line);
+  }
+  .wg-chip {
+    font-size: 11.5px;
+    font-weight: 600;
+    text-align: left;
+    padding: 3px 6px;
+    border-radius: 6px;
+    color: #fff;
+    background: var(--c);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .wg-times {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--surface);
+  }
+  .wg-times > div {
+    position: absolute;
+    right: 6px;
+    transform: translateY(-50%);
+    font-size: 10.5px;
+    opacity: 0.5;
+    font-variant-numeric: tabular-nums;
+  }
+  .wg-times > div:first-child {
+    transform: none;
+  }
+  .wg-col {
+    position: relative;
+    border-left: 1px solid var(--line);
+    background-image: linear-gradient(var(--line) 1px, transparent 1px);
+  }
+  .wg-col.today {
+    background-color: color-mix(in srgb, var(--accent) 5%, transparent);
+  }
+  .wg-col.clickable {
+    cursor: copy;
+  }
+  .wg-now {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--ko);
+    z-index: 4;
+    pointer-events: none;
+  }
+  .wg-now::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: -3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ko);
+  }
+  .wg-event {
+    position: absolute;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    text-align: left;
+    overflow: hidden;
+    padding: 4px 6px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    line-height: 1.25;
+    color: color-mix(in srgb, var(--c) 70%, var(--text));
+    background: color-mix(in srgb, var(--c) 18%, var(--surface));
+    border-left: 3px solid var(--c);
+    transition:
+      transform 0.12s,
+      box-shadow 0.12s;
+  }
+  .wg-event.dashed {
+    background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 14%, var(--surface)) 0 6px, color-mix(in srgb, var(--c) 7%, var(--surface)) 6px 12px);
+  }
+  .wg-event:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+    z-index: 5;
+  }
+  .wg-title {
+    font-weight: 700;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .wg-title i {
+    font-style: normal;
+    font-size: 9.5px;
+    font-weight: 800;
+    padding: 0 4px;
+    border-radius: 4px;
+    background: var(--c);
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .wg-time,
+  .wg-sub {
+    opacity: 0.8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .type-badge {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 6px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 13px;
+    color: #fff;
+    background: var(--c);
+    flex-shrink: 0;
+  }
+  .day-pick.wide {
+    width: auto;
+    padding: 0 12px;
+  }
+}
+@media (min-width: 641px) {
+  .main.no-sidebar .page {
+    padding-top: max(64px, env(safe-area-inset-top));
+  }
 }

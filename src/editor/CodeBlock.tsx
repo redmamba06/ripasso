@@ -5,13 +5,13 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { createLowlight, common } from 'lowlight'
 import { useState } from 'react'
 import { Check, Copy, Sparkles, TerminalSquare, Loader2 } from 'lucide-react'
-import { chat, SYSTEM_TUTOR } from '../lib/groq'
+import { chat, tutor, aiLang } from '../lib/groq'
 import { toast } from '../components/Toast'
 
 export const lowlight = createLowlight(common)
 
 export const LANGUAGES: { id: string; label: string }[] = [
-  { id: 'plaintext', label: 'Testo' },
+  { id: 'plaintext', label: 'Plain text' },
   { id: 'python', label: 'Python' },
   { id: 'java', label: 'Java' },
   { id: 'c', label: 'C' },
@@ -67,14 +67,14 @@ function CodeView({ node, updateAttributes, editor, getPos }: NodeViewProps) {
     setBusy(true)
     try {
       const prompt = terminal
-        ? `Per ciascun comando Linux qui sotto (le righe che iniziano con "$ "), scrivi una spiegazione brevissima (max 12 parole) di cosa fa e delle opzioni usate.
-Rispondi SOLO con le righe di commento, una per comando, nel formato "# <spiegazione>", nello stesso ordine.
+        ? `For each Linux command below (the lines starting with "$ "), write a very short explanation (max 12 words, in ${aiLang()}) of what it does and of the options used.
+Reply ONLY with the comment lines, one per command, in the format "# <explanation>", in the same order.
 
 ${code}`
-        : `Spiega in modo conciso cosa fa questo codice ${lang}, punto per punto (max 6 punti), in italiano. Evidenzia i concetti chiave.\n\n\`\`\`${lang}\n${code}\n\`\`\``
+        : `Concisely explain what this ${lang} code does, point by point (max 6 points), in ${aiLang()}. Highlight the key concepts.\n\n\`\`\`${lang}\n${code}\n\`\`\``
       const out = await chat(
         [
-          { role: 'system', content: SYSTEM_TUTOR },
+          { role: 'system', content: tutor() },
           { role: 'user', content: prompt },
         ],
         { maxTokens: 1500 },
@@ -128,7 +128,7 @@ ${code}`
               <i style={{ background: '#28c840' }} />
             </span>
             <span className="code-title">
-              <TerminalSquare size={13} /> studente@linux: ~
+              <TerminalSquare size={13} /> student@linux: ~
             </span>
           </>
         ) : (
@@ -142,11 +142,11 @@ ${code}`
         )}
         <span className="flex-1" />
         {editor.isEditable && (
-          <button className="code-btn" onClick={explain} disabled={busy} title={terminal ? 'Commenta i comandi con l’AI' : 'Spiega con l’AI'}>
-            {busy ? <Loader2 size={13} className="spin" /> : <Sparkles size={13} />} <span className="max-sm:hidden">{terminal ? 'Commenta' : 'Spiega'}</span>
+          <button className="code-btn" onClick={explain} disabled={busy} title={terminal ? 'Comment the commands with the AI' : 'Explain with the AI'}>
+            {busy ? <Loader2 size={13} className="spin" /> : <Sparkles size={13} />} <span className="max-sm:hidden">{terminal ? 'Comment' : 'Explain'}</span>
           </button>
         )}
-        <button className="code-btn" onClick={copy} title="Copia">
+        <button className="code-btn" onClick={copy} title="Copy">
           {copied ? <Check size={13} /> : <Copy size={13} />}
         </button>
       </div>

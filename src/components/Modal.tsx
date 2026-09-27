@@ -25,7 +25,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
             {title && (
               <div className="flex items-center justify-between mb-4 gap-3">
                 <h2 className="text-lg font-semibold">{title}</h2>
-                <button className="icon-btn" onClick={onClose} aria-label="Chiudi">
+                <button className="icon-btn" onClick={onClose} aria-label="Close">
                   <X size={18} />
                 </button>
               </div>

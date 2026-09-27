@@ -47,7 +47,7 @@ export function SearchPalette() {
     const s = q.toLowerCase().trim()
     const cname = (id: string) => data.courses.find((c) => c.id === id)?.name ?? ''
     const out: Hit[] = []
-    for (const c of data.courses) if (!s || c.name.toLowerCase().includes(s)) out.push({ kind: 'course', title: `${c.emoji} ${c.name}`, sub: 'Corso', to: `/c/${c.id}` })
+    for (const c of data.courses) if (!s || c.name.toLowerCase().includes(s)) out.push({ kind: 'course', title: `${c.emoji} ${c.name}`, sub: 'Course', to: `/c/${c.id}` })
     for (const u of data.units) if (!s || u.title.toLowerCase().includes(s)) out.push({ kind: 'unit', title: u.title, sub: cname(u.courseId), to: `/u/${u.id}` })
     for (const qz of data.quizzes) if (s && qz.title.toLowerCase().includes(s)) out.push({ kind: 'quiz', title: qz.title, sub: 'Quiz · ' + cname(qz.courseId), to: `/q/${qz.id}` })
     if (s.length >= 2) {
@@ -60,7 +60,7 @@ export function SearchPalette() {
         out.push({
           kind: 'note',
           title: u.title,
-          sub: 'Appunti · ' + cname(n.courseId),
+          sub: 'Notes · ' + cname(n.courseId),
           to: `/u/${u.id}`,
           snippet: (a > 0 ? '…' : '') + n.text.slice(a, i + s.length + 60).replace(/\n/g, ' ') + '…',
         })
@@ -90,7 +90,7 @@ export function SearchPalette() {
               <input
                 ref={input}
                 className="flex-1 bg-transparent outline-none py-4 text-[16px]"
-                placeholder="Cerca corsi, unità, appunti…"
+                placeholder="Search courses, units, notes…"
                 value={q}
                 onChange={(e) => {
                   setQ(e.target.value)
@@ -105,7 +105,7 @@ export function SearchPalette() {
               />
             </div>
             <div className="max-h-[55vh] overflow-y-auto p-2">
-              {hits.length === 0 && <div className="p-6 text-center opacity-50 text-sm">Nessun risultato</div>}
+              {hits.length === 0 && <div className="p-6 text-center opacity-50 text-sm">No results</div>}
               {hits.map((h, i) => (
                 <button key={h.kind + h.to + i} className={`pal-item ${i === sel ? 'on' : ''}`} onMouseEnter={() => setSel(i)} onClick={() => go(h)}>
                   <span className="pal-icon">{h.kind === 'course' ? <BookOpen size={15} /> : h.kind === 'quiz' ? <ListChecks size={15} /> : <FileText size={15} />}</span>

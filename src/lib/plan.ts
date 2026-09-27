@@ -80,35 +80,35 @@ export function buildPlan(course: Course, units: Unit[], quizzes: Quiz[], ps: Pl
           days.push({
             date: iso(d),
             review: false,
-            tasks: [{ kind: 'unit', unitId: u.id, title: u.title, done: false, part: span > 1 ? (j === span - 1 ? 'ripasso e schema' : j === 0 ? 'studio e appunti' : 'approfondimento') : undefined }],
+            tasks: [{ kind: 'unit', unitId: u.id, title: u.title, done: false, part: span > 1 ? (j === span - 1 ? 'revision and outline' : j === 0 ? 'study and notes' : 'deep dive') : undefined }],
           })
         }
       })
     }
   } else {
-    for (const d of studyDays) days.push({ date: iso(d), tasks: [{ kind: 'review', title: 'Ripasso libero delle unità già studiate' }], review: false })
+    for (const d of studyDays) days.push({ date: iso(d), tasks: [{ kind: 'review', title: 'Free revision of the units you already studied' }], review: false })
   }
 
   reviewDays.forEach((d, i) => {
     const tasks: Task[] = []
-    if (i === 0) tasks.push({ kind: 'summary', title: 'Rileggi il riassunto completo del corso' })
+    if (i === 0) tasks.push({ kind: 'summary', title: 'Re-read the full course summary' })
     const q = quizzes[i % Math.max(1, quizzes.length)]
-    if (q) tasks.push({ kind: 'quiz', quizId: q.id, title: `Simulazione: ${q.title}` })
-    tasks.push({ kind: 'review', title: i === reviewDays.length - 1 ? 'Ripasso leggero dei riquadri “Da sapere per l’esame”' : 'Ripassa gli errori dei quiz e i punti deboli' })
+    if (q) tasks.push({ kind: 'quiz', quizId: q.id, title: `Mock exam: ${q.title}` })
+    tasks.push({ kind: 'review', title: i === reviewDays.length - 1 ? 'Light revision of the “Exam must-know” boxes' : 'Go over your quiz mistakes and weak spots' })
     days.push({ date: iso(d), tasks, review: true })
   })
 
   return { days, remaining: n, perDay: studyDays.length ? n / studyDays.length : n, tooLate: false, noDate: false }
 }
 
-export const DAY_NAMES = ['L', 'M', 'M', 'G', 'V', 'S', 'D']
+export const DAY_NAMES = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
 export function fmtDay(date: string) {
   const d = new Date(date + 'T00:00:00')
   const t = today()
-  if (date === t) return 'Oggi'
+  if (date === t) return 'Today'
   const tm = new Date()
   tm.setDate(tm.getDate() + 1)
-  if (date === iso(tm)) return 'Domani'
-  return d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })
+  if (date === iso(tm)) return 'Tomorrow'
+  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 }
