@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'motion/react'
 import { ChevronLeft, ChevronRight, CalendarDays, Download, Link2, Copy, Check, RefreshCw, Loader2 } from 'lucide-react'
 import { db, alive, type Course } from '../lib/db'
-import { buildIcs, SESSION_LABEL, toMin, type ClassSession } from '../lib/ics'
+import { buildIcs, SESSION_LABEL, toMin, activeOn, type ClassSession } from '../lib/ics'
 import { download } from '../lib/export'
 import { useSync } from '../lib/sync'
 import { feedUrl, googleAddUrl, webcalUrl } from '../lib/calfeed'
@@ -19,8 +19,6 @@ const mondayOf = (d: Date) => {
   x.setDate(x.getDate() - ((x.getDay() + 6) % 7))
   return x
 }
-/** Is the course running on that date? (teaching period, otherwise until the exam) */
-const running = (c: Course, date: string) => (!c.term?.start || date >= c.term.start) && (c.term?.end ? date <= c.term.end : !c.exam?.date || date <= c.exam.date)
 
 export default function CalendarPage() {
   const nav = useNavigate()
@@ -40,7 +38,7 @@ export default function CalendarPage() {
     const ad: Record<number, { key: string; label: string; color: string; onClick?: () => void }[]> = {}
     for (const c of courses) {
       for (const s of c.schedule ?? []) {
-        if (!running(c, iso(days[s.day]))) continue
+        if (!activeOn(c, s, iso(days[s.day]))) continue
         ev.push({
           key: c.id + s.id,
           day: s.day,
@@ -70,7 +68,7 @@ export default function CalendarPage() {
   // weekly summary
   const perCourse = courses
     .map((c) => {
-      const sessions = (c.schedule ?? []).filter((s) => running(c, iso(days[s.day])))
+      const sessions = (c.schedule ?? []).filter((s) => activeOn(c, s, iso(days[s.day])))
       const h = (t?: string) => sessions.filter((s) => !t || s.type === t).reduce((a, s) => a + (toMin(s.end) - toMin(s.start)) / 60, 0)
       return { c, lec: h('lecture'), ex: h('exercise'), other: h() - h('lecture') - h('exercise') }
     })

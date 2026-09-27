@@ -13,6 +13,12 @@ export interface ClassSession {
   end: string
   room?: string
   note?: string
+  /** first date of this class (YYYY-MM-DD); empty = course teaching period start */
+  from?: string
+  /** last date of this class (YYYY-MM-DD); empty = course teaching period end / exam */
+  until?: string
+  /** a single class on `from` instead of a weekly one */
+  once?: boolean
 }
 
 export interface IcsCourse {
@@ -29,6 +35,19 @@ export const SESSION_LABEL: Record<SessionType, string> = { lecture: 'Lecture', 
 export const DAY_LONG = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 export const DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const BYDAY = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU']
+
+/** Effective period of a class: its own dates, otherwise the course's. */
+export function sessionRange(c: Pick<IcsCourse, 'term' | 'exam'>, s: ClassSession): { from?: string; until?: string } {
+  if (s.once) return { from: s.from, until: s.from }
+  return { from: s.from || c.term?.start, until: s.until || c.term?.end || c.exam?.date }
+}
+
+/** Does the class take place on this date (YYYY-MM-DD, which must fall on s.day)? */
+export function activeOn(c: Pick<IcsCourse, 'term' | 'exam'>, s: ClassSession, date: string) {
+  if (s.once) return !!s.from && s.from === date
+  const r = sessionRange(c, s)
+  return (!r.from || date >= r.from) && (!r.until || date <= r.until)
+}
 
 export const toMin = (t: string) => {
   const [h, m] = t.split(':').map(Number)
@@ -76,12 +95,15 @@ export function buildIcs(courses: IcsCourse[], opts: { calName?: string; tz?: st
   ]
   for (const c of courses) {
     if (c.deleted) continue
-    // start of the repetition: term start, otherwise the Monday of the current week
+    // without dates the repetition starts from the Monday of the current week
     const monday = firstOn(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6), 0)
-    const from = c.term?.start ? new Date(c.term.start + 'T00:00:00') : monday
-    const until = c.term?.end || c.exam?.date
     for (const s of c.schedule ?? []) {
-      const d = firstOn(from, s.day)
+      const r = sessionRange(c, s)
+      if (s.once && !r.from) continue
+      const from = r.from ? new Date(r.from + 'T00:00:00') : monday
+      const until = r.until
+      const d = s.once ? from : firstOn(from, s.day)
+      if (!s.once && until && ymd(d) > until.replace(/-/g, '')) continue
       const [sh, sm] = s.start.split(':')
       const [eh, em] = s.end.split(':')
       L.push('BEGIN:VEVENT')
@@ -90,7 +112,7 @@ export function buildIcs(courses: IcsCourse[], opts: { calName?: string; tz?: st
       L.push(`SUMMARY:${esc(`${c.name} – ${SESSION_LABEL[s.type] ?? 'Class'}`)}`)
       L.push(`DTSTART;TZID=${tz}:${ymd(d)}T${pad(+sh)}${pad(+sm)}00`)
       L.push(`DTEND;TZID=${tz}:${ymd(d)}T${pad(+eh)}${pad(+em)}00`)
-      L.push(`RRULE:FREQ=WEEKLY;BYDAY=${BYDAY[s.day]}${until ? `;UNTIL=${until.replace(/-/g, '')}T235959Z` : ''}`)
+      if (!s.once) L.push(`RRULE:FREQ=WEEKLY;BYDAY=${BYDAY[s.day]}${until ? `;UNTIL=${until.replace(/-/g, '')}T235959Z` : ''}`)
       if (s.room) L.push(`LOCATION:${esc(s.room)}`)
       const desc = [c.professor && `Professor: ${c.professor}`, s.note].filter(Boolean).join('\n')
       if (desc) L.push(`DESCRIPTION:${esc(desc)}`)

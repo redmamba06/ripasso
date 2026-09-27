@@ -3216,3 +3216,27 @@ kbd {
     padding-top: max(64px, env(safe-area-inset-top));
   }
 }
+@layer components {
+  .info-box {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    font-size: 12.5px;
+    padding: 9px 11px;
+    border-radius: 10px;
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .info-box svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .split-box {
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px dashed var(--line-strong);
+  }
+  .seg button:disabled {
+    opacity: 0.3;
+  }
+}
