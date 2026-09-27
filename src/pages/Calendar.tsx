@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'motion/react'
 import { ChevronLeft, ChevronRight, CalendarDays, Download, Link2, Copy, Check, RefreshCw, Loader2 } from 'lucide-react'
 import { db, alive, type Course } from '../lib/db'
-import { buildIcs, SESSION_LABEL, toMin, activeOn, type ClassSession } from '../lib/ics'
+import { buildIcs, toMin, activeOn, occurrence, type ClassSession } from '../lib/ics'
 import { download } from '../lib/export'
 import { useSync } from '../lib/sync'
 import { feedUrl, googleAddUrl, webcalUrl } from '../lib/calfeed'
 import { WeekGrid, type GridEvent } from '../components/WeekGrid'
-import { SessionEditor, TYPE_BADGE, tz } from '../components/ScheduleTab'
+import { SessionEditor, OccurrenceEditor, occurrenceEvent, tz } from '../components/ScheduleTab'
 import { CourseIcon } from '../components/CourseIcon'
 import { toast } from '../components/Toast'
 
@@ -25,6 +25,9 @@ export default function CalendarPage() {
   const courses = useLiveQuery(async () => alive(await db.courses.orderBy('order').toArray()), []) ?? []
   const [week, setWeek] = useState(() => mondayOf(new Date()))
   const [editing, setEditing] = useState<{ course: Course; session: Partial<ClassSession> } | null>(null)
+  const [occ, setOcc] = useState<{ courseId: string; sessionId: string; date: string } | null>(null)
+  const occCourse = occ ? courses.find((c) => c.id === occ.courseId) : undefined
+  const occSession = occCourse?.schedule?.find((s) => s.id === occ?.sessionId) ?? null
   const user = useSync((s) => s.user)
 
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -39,18 +42,8 @@ export default function CalendarPage() {
     for (const c of courses) {
       for (const s of c.schedule ?? []) {
         if (!activeOn(c, s, iso(days[s.day]))) continue
-        ev.push({
-          key: c.id + s.id,
-          day: s.day,
-          start: toMin(s.start),
-          end: toMin(s.end),
-          title: c.name,
-          badge: TYPE_BADGE[s.type],
-          sub: [SESSION_LABEL[s.type], s.room].filter(Boolean).join(' · '),
-          color: c.color,
-          dashed: s.type !== 'lecture',
-          onClick: () => setEditing({ course: c, session: s }),
-        })
+        const date = iso(days[s.day])
+        ev.push(occurrenceEvent(c, s, date, s.day, () => setOcc({ courseId: c.id, sessionId: s.id, date }), true))
       }
       const ed = c.exam?.date
       const di = ed ? days.findIndex((d) => iso(d) === ed) : -1
@@ -68,8 +61,12 @@ export default function CalendarPage() {
   // weekly summary
   const perCourse = courses
     .map((c) => {
-      const sessions = (c.schedule ?? []).filter((s) => activeOn(c, s, iso(days[s.day])))
-      const h = (t?: string) => sessions.filter((s) => !t || s.type === t).reduce((a, s) => a + (toMin(s.end) - toMin(s.start)) / 60, 0)
+      const sessions = (c.schedule ?? []).filter((s) => activeOn(c, s, iso(days[s.day])) && !occurrence(s, iso(days[s.day])).cancelled)
+      const len = (s: ClassSession) => {
+        const o = occurrence(s, iso(days[s.day]))
+        return (toMin(o.end) - toMin(o.start)) / 60
+      }
+      const h = (t?: string) => sessions.filter((s) => !t || s.type === t).reduce((a, s) => a + len(s), 0)
       return { c, lec: h('lecture'), ex: h('exercise'), other: h() - h('lecture') - h('exercise') }
     })
     .filter((x) => x.lec + x.ex + x.other > 0)
@@ -151,6 +148,19 @@ export default function CalendarPage() {
         </div>
       </div>
       {editing && <SessionEditor open onClose={() => setEditing(null)} course={editing.course} session={editing.session} />}
+      {occCourse && (
+        <OccurrenceEditor
+          open={!!occSession}
+          onClose={() => setOcc(null)}
+          course={occCourse}
+          session={occSession}
+          date={occ!.date}
+          onEditSeries={() => {
+            setOcc(null)
+            if (occSession) setEditing({ course: occCourse, session: occSession })
+          }}
+        />
+      )}
     </div>
   )
 }

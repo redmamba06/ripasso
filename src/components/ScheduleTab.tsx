@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, CalendarDays, Download, MapPin, Clock, ChevronLeft, ChevronRight, Repeat, CalendarRange, GitBranch, Check, X } from 'lucide-react'
+import { Plus, Trash2, CalendarDays, Download, MapPin, Clock, ChevronLeft, ChevronRight, Repeat, CalendarRange, GitBranch, Check, X, CalendarX2, Undo2, StickyNote } from 'lucide-react'
 import { put, uid, type Course } from '../lib/db'
-import { activeOn, buildIcs, sessionRange, DAY_LONG, DAY_SHORT, SESSION_LABEL, toMin, type ClassSession, type SessionType } from '../lib/ics'
+import { activeOn, buildIcs, occurrence, sessionRange, DAY_LONG, DAY_SHORT, SESSION_LABEL, toMin, type ClassSession, type SessionType, type Occurrence } from '../lib/ics'
 import { download } from '../lib/export'
 import { Modal } from './Modal'
-import { WeekGrid } from './WeekGrid'
+import { WeekGrid, type GridEvent } from './WeekGrid'
 
 export const TYPE_BADGE: Record<SessionType, string> = { lecture: 'L', exercise: 'E', lab: 'Lab', other: '•' }
 const TYPES: SessionType[] = ['lecture', 'exercise', 'lab', 'other']
@@ -235,10 +235,126 @@ export function SessionEditor({
   )
 }
 
+/** Grid event of a class on a given date, with that day's changes. */
+export function occurrenceEvent(c: Course, s: ClassSession, date: string, day: number, onClick: () => void, withCourse = false): GridEvent {
+  const o = occurrence(s, date)
+  return {
+    key: c.id + s.id + date,
+    day,
+    start: toMin(o.start),
+    end: toMin(o.end),
+    title: o.cancelled ? `No class${withCourse ? ` · ${c.name}` : ''}` : withCourse ? c.name : SESSION_LABEL[s.type],
+    badge: TYPE_BADGE[s.type],
+    sub: o.cancelled ? SESSION_LABEL[s.type] : [withCourse && SESSION_LABEL[s.type], o.room, o.note].filter(Boolean).join(' · '),
+    color: c.color,
+    dashed: s.type !== 'lecture',
+    cancelled: o.cancelled,
+    marked: o.changed,
+    onClick,
+  }
+}
+
+/** Changes to a single date of a class: cancel it, move it, or add a note for that day only. */
+export function OccurrenceEditor({ open, onClose, course, session, date, onEditSeries }: { open: boolean; onClose: () => void; course: Course; session: ClassSession | null; date: string; onEditSeries: () => void }) {
+  const [x, setX] = useState<Occurrence>({})
+  useEffect(() => {
+    if (open && session) setX({ ...(session.exceptions?.[date] ?? {}) })
+  }, [open, session, date])
+  if (!session) return null
+  const o = occurrence({ ...session, exceptions: { [date]: x } }, date)
+  const timeOk = toMin(o.end) > toMin(o.start)
+  const dayLabel = new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+  const write = async (value: Occurrence | null) => {
+    const list = course.schedule ?? []
+    const next = list.map((s) => {
+      if (s.id !== session.id) return s
+      const ex = { ...(s.exceptions ?? {}) }
+      if (value && (value.cancelled || value.start || value.end || value.room || value.note)) ex[date] = value
+      else delete ex[date]
+      return { ...s, exceptions: Object.keys(ex).length ? ex : undefined }
+    })
+    await put<Course>('courses', { ...course, schedule: next })
+    onClose()
+  }
+  const hasChanges = !!session.exceptions?.[date]
+  // only store what differs from the series
+  const cleaned = (v: Occurrence): Occurrence => ({
+    cancelled: v.cancelled || undefined,
+    start: v.start && v.start !== session.start ? v.start : undefined,
+    end: v.end && v.end !== session.end ? v.end : undefined,
+    room: v.room?.trim() && v.room.trim() !== (session.room ?? '') ? v.room.trim() : undefined,
+    note: v.note?.trim() || undefined,
+  })
+
+  return (
+    <Modal open={open} onClose={onClose} title={`${SESSION_LABEL[session.type]} · ${course.name}`}>
+      <div className="occ-date">{dayLabel} — changes here apply to this day only</div>
+      <div className="flex flex-col gap-4">
+        {x.cancelled ? (
+          <div className="warn">
+            <CalendarX2 size={15} /> No class on this day. The other {session.once ? '' : `${DAY_LONG[session.day]}s `}are not affected.
+          </div>
+        ) : null}
+        <button className={`btn ${x.cancelled ? '' : 'btn-danger-soft'}`} onClick={() => setX((p) => ({ ...p, cancelled: !p.cancelled }))}>
+          {x.cancelled ? (
+            <>
+              <Undo2 size={15} /> Restore this class
+            </>
+          ) : (
+            <>
+              <CalendarX2 size={15} /> No class this day
+            </>
+          )}
+        </button>
+        {!x.cancelled && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <label>
+                <span className="label">Starts (this day)</span>
+                <input className="field" type="time" step={300} value={o.start} onChange={(e) => setX((p) => ({ ...p, start: e.target.value }))} />
+              </label>
+              <label>
+                <span className="label">Ends (this day)</span>
+                <input className="field" type="time" step={300} value={o.end} onChange={(e) => setX((p) => ({ ...p, end: e.target.value }))} />
+              </label>
+            </div>
+            {!timeOk && <div className="warn">The end time must be after the start time.</div>}
+            <input className="field" placeholder={session.room ? `Room (usually ${session.room})` : 'Room (optional)'} value={x.room ?? ''} onChange={(e) => setX((p) => ({ ...p, room: e.target.value }))} />
+          </>
+        )}
+        <label>
+          <span className="label flex items-center gap-1">
+            <StickyNote size={12} /> Note for this day only
+          </span>
+          <textarea className="field" rows={3} placeholder="e.g. “Mid-term test”, “Chapter 5”, “Bring laptop”, “Guest lecture”…" value={x.note ?? ''} onChange={(e) => setX((p) => ({ ...p, note: e.target.value }))} />
+        </label>
+        <div className="flex gap-2 flex-wrap">
+          <button className="btn" onClick={onEditSeries} title="Change the class for every week">
+            <Repeat size={15} /> {session.once ? 'Edit class…' : `Edit all ${DAY_LONG[session.day]}s…`}
+          </button>
+          {hasChanges && (
+            <button className="btn" onClick={() => write(null)} title="Remove this day’s changes">
+              <Undo2 size={15} /> Reset day
+            </button>
+          )}
+          <span className="flex-1" />
+          <button className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn btn-primary" onClick={() => write(cleaned(x))} disabled={!x.cancelled && !timeOk}>
+            Save
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 /** Timetable of a single course. */
 export function ScheduleTab({ course }: { course: Course }) {
   const nav = useNavigate()
   const [editing, setEditing] = useState<Partial<Draft> | null>(null)
+  const [occ, setOcc] = useState<{ session: ClassSession; date: string } | null>(null)
   const [week, setWeek] = useState(() => mondayOf(new Date()))
   const list = [...(course.schedule ?? [])].sort((a, b) => (a.once ? 1 : 0) - (b.once ? 1 : 0) || a.day - b.day || toMin(a.start) - toMin(b.start) || (a.from ?? '').localeCompare(b.from ?? ''))
   const setTerm = (k: 'start' | 'end', v: string) => put<Course>('courses', { ...course, term: { ...(course.term ?? {}), [k]: v || undefined } })
@@ -250,7 +366,11 @@ export function ScheduleTab({ course }: { course: Course }) {
     return isoDate(x)
   }
   const inWeek = list.filter((s) => activeOn(course, s, dayDate(s.once && s.from ? weekdayOf(s.from) : s.day)))
-  const hours = inWeek.reduce((h, s) => h + (toMin(s.end) - toMin(s.start)) / 60, 0)
+  const dayOfS = (s: ClassSession) => (s.once && s.from ? weekdayOf(s.from) : s.day)
+  const hours = inWeek.reduce((h, s) => {
+    const o = occurrence(s, dayDate(dayOfS(s)))
+    return o.cancelled ? h : h + (toMin(o.end) - toMin(o.start)) / 60
+  }, 0)
   const move = (n: number) => {
     const d = new Date(week)
     d.setDate(d.getDate() + n * 7)
@@ -313,18 +433,7 @@ export function ScheduleTab({ course }: { course: Course }) {
         </div>
         <WeekGrid
           weekStart={week}
-          events={inWeek.map((s) => ({
-            key: s.id,
-            day: s.once && s.from ? weekdayOf(s.from) : s.day,
-            start: toMin(s.start),
-            end: toMin(s.end),
-            title: SESSION_LABEL[s.type],
-            badge: TYPE_BADGE[s.type],
-            sub: s.room,
-            color: course.color,
-            dashed: s.type !== 'lecture',
-            onClick: () => setEditing(s),
-          }))}
+          events={inWeek.map((s) => occurrenceEvent(course, s, dayDate(dayOfS(s)), dayOfS(s), () => setOcc({ session: s, date: dayDate(dayOfS(s)) })))}
           onSlot={(day, m) => {
             const h = (x: number) => `${String(Math.floor(x / 60)).padStart(2, '0')}:${String(x % 60).padStart(2, '0')}`
             setEditing({ day, start: h(m), end: h(m + 120) })
@@ -362,6 +471,11 @@ export function ScheduleTab({ course }: { course: Course }) {
                         </span>
                       )}
                       {s.note && <span>{s.note}</span>}
+                      {s.exceptions && Object.keys(s.exceptions).length > 0 && (
+                        <span>
+                          ✎ {Object.values(s.exceptions).filter((e) => e.cancelled).length} cancelled · {Object.values(s.exceptions).filter((e) => !e.cancelled).length} changed
+                        </span>
+                      )}
                     </span>
                   </span>
                 </button>
@@ -371,6 +485,18 @@ export function ScheduleTab({ course }: { course: Course }) {
         </div>
       )}
       <SessionEditor open={!!editing} onClose={() => setEditing(null)} course={course} session={editing} />
+      <OccurrenceEditor
+        open={!!occ}
+        onClose={() => setOcc(null)}
+        course={course}
+        session={occ?.session ?? null}
+        date={occ?.date ?? ''}
+        onEditSeries={() => {
+          const s = occ!.session
+          setOcc(null)
+          setEditing(s)
+        }}
+      />
     </div>
   )
 }

@@ -19,6 +19,30 @@ export interface ClassSession {
   until?: string
   /** a single class on `from` instead of a weekly one */
   once?: boolean
+  /** changes to single dates of the series (key = YYYY-MM-DD) */
+  exceptions?: Record<string, Occurrence>
+}
+
+/** Change to one date only: cancelled, different time/room, or a note for that day. */
+export interface Occurrence {
+  cancelled?: boolean
+  start?: string
+  end?: string
+  room?: string
+  note?: string
+}
+
+/** Details of a class on a given date, with that date's changes applied. */
+export function occurrence(s: ClassSession, date: string) {
+  const x = s.exceptions?.[date]
+  return {
+    cancelled: !!x?.cancelled,
+    start: x?.start || s.start,
+    end: x?.end || s.end,
+    room: x?.room || s.room,
+    note: x?.note,
+    changed: !!x && !x.cancelled && !!(x.start || x.end || x.room || x.note),
+  }
 }
 
 export interface IcsCourse {
@@ -104,20 +128,51 @@ export function buildIcs(courses: IcsCourse[], opts: { calName?: string; tz?: st
       const until = r.until
       const d = s.once ? from : firstOn(from, s.day)
       if (!s.once && until && ymd(d) > until.replace(/-/g, '')) continue
+      const summary = `SUMMARY:${esc(`${c.name} – ${SESSION_LABEL[s.type] ?? 'Class'}`)}`
+      const desc = (note?: string) => [note, c.professor && `Professor: ${c.professor}`, s.note].filter(Boolean).join('\n')
+      if (s.once) {
+        // single class: its changes are applied directly
+        const o = occurrence(s, r.from!)
+        if (o.cancelled) continue
+        const [osh, osm] = o.start.split(':')
+        const [oeh, oem] = o.end.split(':')
+        L.push('BEGIN:VEVENT', `UID:${s.id}@ripasso`, `DTSTAMP:${stamp}`, summary)
+        L.push(`DTSTART;TZID=${tz}:${ymd(d)}T${pad(+osh)}${pad(+osm)}00`, `DTEND;TZID=${tz}:${ymd(d)}T${pad(+oeh)}${pad(+oem)}00`)
+        if (o.room) L.push(`LOCATION:${esc(o.room)}`)
+        if (desc(o.note)) L.push(`DESCRIPTION:${esc(desc(o.note))}`)
+        L.push(`CATEGORIES:${esc(SESSION_LABEL[s.type] ?? 'Class')}`, 'END:VEVENT')
+        continue
+      }
       const [sh, sm] = s.start.split(':')
       const [eh, em] = s.end.split(':')
       L.push('BEGIN:VEVENT')
       L.push(`UID:${s.id}@ripasso`)
       L.push(`DTSTAMP:${stamp}`)
-      L.push(`SUMMARY:${esc(`${c.name} – ${SESSION_LABEL[s.type] ?? 'Class'}`)}`)
+      L.push(summary)
       L.push(`DTSTART;TZID=${tz}:${ymd(d)}T${pad(+sh)}${pad(+sm)}00`)
       L.push(`DTEND;TZID=${tz}:${ymd(d)}T${pad(+eh)}${pad(+em)}00`)
-      if (!s.once) L.push(`RRULE:FREQ=WEEKLY;BYDAY=${BYDAY[s.day]}${until ? `;UNTIL=${until.replace(/-/g, '')}T235959Z` : ''}`)
+      L.push(`RRULE:FREQ=WEEKLY;BYDAY=${BYDAY[s.day]}${until ? `;UNTIL=${until.replace(/-/g, '')}T235959Z` : ''}`)
+      // dates of the series with changes: cancelled → EXDATE, modified → own event (RECURRENCE-ID)
+      const exc = Object.entries(s.exceptions ?? {}).filter(([date]) => (!r.from || date >= r.from) && (!until || date <= until))
+      const cancelled = exc.filter(([, x]) => x.cancelled).map(([date]) => `${date.replace(/-/g, '')}T${pad(+sh)}${pad(+sm)}00`)
+      if (cancelled.length) L.push(`EXDATE;TZID=${tz}:${cancelled.join(',')}`)
       if (s.room) L.push(`LOCATION:${esc(s.room)}`)
-      const desc = [c.professor && `Professor: ${c.professor}`, s.note].filter(Boolean).join('\n')
-      if (desc) L.push(`DESCRIPTION:${esc(desc)}`)
+      if (desc()) L.push(`DESCRIPTION:${esc(desc())}`)
       L.push(`CATEGORIES:${esc(SESSION_LABEL[s.type] ?? 'Class')}`)
       L.push('END:VEVENT')
+      for (const [date, x] of exc) {
+        if (x.cancelled) continue
+        const o = occurrence(s, date)
+        if (!o.changed) continue
+        const dd = date.replace(/-/g, '')
+        const [osh, osm] = o.start.split(':')
+        const [oeh, oem] = o.end.split(':')
+        L.push('BEGIN:VEVENT', `UID:${s.id}@ripasso`, `DTSTAMP:${stamp}`, `RECURRENCE-ID;TZID=${tz}:${dd}T${pad(+sh)}${pad(+sm)}00`, summary)
+        L.push(`DTSTART;TZID=${tz}:${dd}T${pad(+osh)}${pad(+osm)}00`, `DTEND;TZID=${tz}:${dd}T${pad(+oeh)}${pad(+oem)}00`)
+        if (o.room) L.push(`LOCATION:${esc(o.room)}`)
+        if (desc(o.note)) L.push(`DESCRIPTION:${esc(desc(o.note))}`)
+        L.push('END:VEVENT')
+      }
     }
     if (c.exam?.date) {
       L.push('BEGIN:VEVENT')

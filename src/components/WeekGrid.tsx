@@ -11,6 +11,10 @@ export interface GridEvent {
   badge?: string
   color: string
   dashed?: boolean
+  /** cancelled for this date only (shown struck through) */
+  cancelled?: boolean
+  /** has a note / change just for this date */
+  marked?: boolean
   onClick?: () => void
 }
 
@@ -147,7 +151,7 @@ export function WeekGrid({ events, days, weekStart, onSlot, hourHeight = 46, all
               .map((e) => (
                 <button
                   key={e.key}
-                  className={`wg-event ${e.dashed ? 'dashed' : ''}`}
+                  className={`wg-event ${e.dashed ? 'dashed' : ''} ${e.cancelled ? 'cancelled' : ''}`}
                   style={{
                     ['--c' as string]: e.color,
                     top: px(e.start) + 1,
@@ -161,6 +165,7 @@ export function WeekGrid({ events, days, weekStart, onSlot, hourHeight = 46, all
                   <span className="wg-title">
                     {e.badge && <i>{e.badge}</i>}
                     {e.title}
+                    {e.marked && <b className="wg-mark" title="Changed or has a note for this day">✎</b>}
                   </span>
                   <span className="wg-time">
                     {fmt(e.start)}–{fmt(e.end)}
